@@ -1,0 +1,60 @@
+services:
+  xion:
+    image: ghcr.io/burnt-labs/xion/xion:${XION_VERSION:-latest}
+    command: >
+      /usr/bin/cosmovisor run start \
+        --api.address tcp://0.0.0.0:1317 \
+        --api.enable true \
+        --api.enabled-unsafe-cors true \
+        --api.swagger true \
+        --grpc.enable true \
+        --grpc.address 0.0.0.0:9090 \
+        --grpc-web.enable \
+        --minimum-gas-prices 0.025uxion \
+        --rpc.laddr tcp://0.0.0.0:26657
+    entrypoint: /home/xiond/init/entrypoint.sh
+    deploy:
+      replicas: ${NUM_VALIDATORS:-3}
+    environment:
+      CHAIN_ID: ${CHAIN_ID}
+      DAEMON_HOME: ${DAEMON_HOME}
+      DAEMON_NAME: ${DAEMON_NAME}
+      DEFAULT_DENOM: ${DEFAULT_DENOM}
+      DENOM_METADATA_NAME: ${DENOM_METADATA_NAME}
+      GENESIS_AMOUNT: ${GENESIS_AMOUNT}
+      GENTX_AMOUNT: ${GENTX_AMOUNT}
+      MNEMONIC: ${MNEMONIC}
+      MODIFY_GENESIS_JQ: ${MODIFY_GENESIS_JQ}
+      NUM_VALIDATORS: ${NUM_VALIDATORS:-3}
+      SOURCE_CHAIN_ID: ${SOURCE_CHAIN_ID:-""}
+      SOURCE_CHAIN_RPC: ${SOURCE_CHAIN_RPC:-""}
+      SOURCE_CHAIN_CODE_IDS: ${SOURCE_CHAIN_CODE_IDS:-()}
+    networks:
+      - default
+    ports:
+      - 1317
+      - 26656
+      - 26657
+    user: root
+    volumes:
+      - /home/${DAEMON_NAME}
+      - shared:/home/${DAEMON_NAME}/.shared
+      - ./scripts/init:/home/${DAEMON_NAME}/init
+    working_dir: /home/${DAEMON_NAME}
+
+  haproxy:
+    image: haproxy:2.9-alpine
+    ports:
+      - 1317:1317
+      - 8444:8444
+      - 9090:9090
+      - 26657:26657
+      - 26658:26658
+    volumes:
+      - ./init/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+
+networks:
+  default:
+
+volumes:
+  shared:
