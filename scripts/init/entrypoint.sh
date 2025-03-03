@@ -107,7 +107,7 @@ import_modules() {
         import_module_params "${module}"
     done
     # for code_id in ${SOURCE_CHAIN_CODE_IDS}; do
-    #     import_genesis
+    #     import_module_params "${code_id}"
     # done
 }
 
