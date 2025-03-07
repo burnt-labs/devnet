@@ -29,29 +29,174 @@ services:
       SOURCE_CHAIN_ID: ${SOURCE_CHAIN_ID:-""}
       SOURCE_CHAIN_RPC: ${SOURCE_CHAIN_RPC:-""}
       SOURCE_CHAIN_CODE_IDS: ${SOURCE_CHAIN_CODE_IDS:-()}
-    networks:
-      - default
     ports:
       - 1317
       - 26656
       - 26657
+    healthcheck:
+      test: ["CMD-SHELL", "curl http://localhost:26657/status"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     user: root
+    working_dir: /home/${DAEMON_NAME}
+    networks:
+      - default
     volumes:
       - /home/${DAEMON_NAME}
       - shared:/home/${DAEMON_NAME}/.shared
       - ./scripts/init:/home/${DAEMON_NAME}/init
-    working_dir: /home/${DAEMON_NAME}
 
-  haproxy:
-    image: haproxy:2.9-alpine
+  xion-dashboard:
+    build:
+      context: xion-dashboard-app/
+      args:
+        ENV_FILE: .env.example
     ports:
-      - 1317:1317
-      - 8444:8444
-      - 9090:9090
-      - 26657:26657
-      - 26658:26658
-    volumes:
-      - ./init/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - "4173:4173"
+    user: root
+    networks:
+      - default
+
+  xion-developer-portal:
+    build:
+      context: xion-developer-portal/
+      args:
+        ENV_FILE: .env.example
+    ports:
+      - "3001:3000"
+    user: root
+    networks:
+      - default
+
+  xion-explorer:
+    build:
+      context: xion-explorer/
+    ports:
+      - "3000:3000"
+    user: root
+    networks:
+      - default
+
+#  xion-aa-api:
+#    image: ghcr.io/burnt-labs/xion/xion-aa:${XION_VERSION:-latest}
+#     # target: api
+#    environment:
+#      AWS_ACCESS_KEY_ID: "test"
+#      AWS_SECRET_ACCESS_KEY: "test"
+#      AWS_REGION: "us-east-1"
+#    env_file:
+#      - .env
+#    ports:
+#      - "3001:3001"
+#    depends_on:
+#      worker:
+#        condition: service_healthy
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/healthz/readiness"]
+
+#  xion-aa-worker:
+#    image: ghcr.io/burnt-labs/xion/xion-aa:${XION_VERSION:-latest}
+#      #target: worker
+#    environment:
+#      AWS_ACCESS_KEY_ID: "test"
+#      AWS_SECRET_ACCESS_KEY: "test"
+#    env_file:
+#      - .env
+#    depends_on:
+#      localstack:
+#        condition: service_healthy
+#      redis:
+#        condition: service_healthy
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:3001/healthz/readiness"]
+
+#  postgres:
+#    image: xion-postgres
+#    ports:
+#      - 5432:5432
+#    environment:
+#      POSTGRES_PASSWORD: postgres
+#    healthcheck:
+#      test: ["CMD-SHELL", "pg_isready -U postgres"]
+#      interval: 5s
+#      timeout: 5s
+#      retries: 5
+
+#  subquery-node:
+#    image: subquerynetwork/subql-node-cosmos:v3.11.2
+#    depends_on:
+#      "postgres":
+#        condition: service_healthy
+#      "xion":
+#        condition: service_healthy
+##    restart: always
+#    environment:
+#      SUB_COMMAND: "start"
+#      DB_USER: postgres
+#      DB_PASS: postgres
+#      DB_DATABASE: postgres
+#      DB_HOST: postgres
+#      DB_PORT: 5432
+#    volumes:
+#      - ./:/app
+#    command:
+#      - wget -O /app/project.ts https://github.com/burnt-labs/xion-indexer/blob/main/project.ts &&
+#      - ${SUB_COMMAND} # set SUB_COMMAND env variable to "test" to run tests
+#      - -f=/app
+#      - --db-schema=app
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://subquery-node:3000/ready"]
+#      interval: 3s
+#      timeout: 5s
+#      retries: 10
+
+#  graphql-engine:
+#    image: subquerynetwork/subql-query:latest
+#    ports:
+#      - 3001:3000
+#    depends_on:
+#      "postgres":
+#        condition: service_healthy
+#      "subquery-node":
+#        condition: service_healthy
+#    restart: always
+#    environment:
+#      DB_USER: postgres
+#      DB_PASS: postgres
+#      DB_DATABASE: postgres
+#      DB_HOST: postgres
+#      DB_PORT: 5432
+#    command:
+#      - --name=app
+#      - --playground
+#      - --indexer=http://subquery-node:3000
+
+#  redis:
+#    image: redis:7-alpine3.19
+#    ports:
+#      - "6379:6379"
+#    healthcheck:
+#      test: ["CMD", "redis-cli", "ping"]
+#
+#  haproxy:
+#    image: haproxy:2.9-alpine
+#    ports:
+#      - 1317:1317
+#      - 8444:8444
+#      - 9090:9090
+#      - 26657:26657
+#      - 26658:26658
+#    volumes:
+#      - ./scripts/init/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+
+#  localstack:
+#    image: localstack/localstack
+#    ports:
+#      - "4566:4566"            # LocalStack Gateway
+#      - "4510-4559:4510-4559"  # external services port range
+#    volumes: # https://docs.localstack.cloud/references/init-hooks/
+#      - ".localstack/bootstrap:/etc/localstack/init/ready.d/"
 
 networks:
   default:
