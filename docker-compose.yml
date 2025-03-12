@@ -95,52 +95,8 @@ services:
       AWS_REGION: "us-east-1"
     ports:
       - "8787:8787"
-#    depends_on:
-#      xion-aa-worker:
-#        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/healthz/readiness"]
-
-#  xion-aa-worker:
-#    build:
-#      context: ./xion-aa-api
-#      target: worker
-#    environment:
-#      AWS_ACCESS_KEY_ID: "test"
-#      AWS_SECRET_ACCESS_KEY: "test"
-#      #
-#      CODE_ID: 21
-#      CHECKSUM: "8B8F156A0E4BF502C1ED15CB992ED8D92AD8C103CFD1611E7970D4D9FDF44BC4"
-#      #STYTCH_PROJECT_ID: "project-live-7e4a3221-79cd-4f34-ac1d-fedac4bde13e"
-#      STYTCH_PROJECT_ID: "project-test-5ae234a7-6b74-46af-a7b7-969f3df38cc0"
-#      STYTCH_SECRET: "secret-test-RNMAciCGC1btTKxDUssUdEOiugxoBm8rwzQ="
-#      STYTCH_API_URL: "https://api.stytch.com/v1/"
-#      STYTCH_PASSWD: "bogusPassword420++"
-#      XION_AA_API_URL: "http://localhost:3000/api/v1"
-#      PRIVATE_KEY: "f19c6b623a2d32de53c70bb5aff0e68dc2dc7ee2e3620259dbb6527eff88a392"
-#    env_file:
-#      - .env
-#    depends_on:
-#      localstack:
-#        condition: service_healthy
-#      redis:
-#        condition: service_healthy
-#    healthcheck:
-#      test: ["CMD", "curl", "-f", "http://localhost:3001/healthz/readiness"]
-
-  postgres:
-    build:
-      context: ./xion-indexer
-      dockerfile: ./docker/pg-Dockerfile
-    ports:
-      - 5432:5432
-    environment:
-      POSTGRES_PASSWORD: postgres
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   localstack:
     image: localstack/localstack
