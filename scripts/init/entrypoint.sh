@@ -74,21 +74,22 @@ initialize_account() {
     local validator="$1"
     local account="$2"
     local index="$3"
+    local amount="${4}"
     echo "Initializing account ${validator}..."
-    echo "${MNEMONIC}" | "${DAEMON_NAME}" keys add "${validator}" --account "${index}" --account "${index}" --keyring-backend test --recover --output json >> "${HOME}/keys.json"
-    "${DAEMON_NAME}" "${GENESIS}" add-genesis-account "${validator}" "${GENESIS_AMOUNT}${DEFAULT_DENOM}" --keyring-backend test --append
+    echo "${MNEMONIC}" | "${DAEMON_NAME}" keys add "${validator}" --account "${account}" --index "${index}" --keyring-backend test --recover --output json >> "${HOME}/keys.json"
+    "${DAEMON_NAME}" "${GENESIS}" add-genesis-account "${validator}" "${amount}${DEFAULT_DENOM}" --keyring-backend test --append
 }
 
 # Initialize all accounts
 initialize_all_accounts() {
     # Faucet
-    initialize_account "faucet" 0 0
+    initialize_account "faucet" 0 0 $(( GENESIS_AMOUNT ))
     # AAApi
-    initialize_account "abstraxion" 1 0
+    initialize_account "abstraxion" 1 0 $(( GENESIS_AMOUNT ))
     # Validators
     for num in $(seq 1 $((NUM_VALIDATORS - 1))); do
         local validator="${DAEMON_NAME}-${num}"
-        initialize_account "${validator}" 2 "${num}"
+        initialize_account "${validator}" 2 "${num}" "$(( GENTX_AMOUNT + 1000000 ))"
     done
 }
 
@@ -96,7 +97,7 @@ initialize_validator() {
     local num="$1"
     local validator="${DAEMON_NAME}-${num}"
     initialize_chain "${validator}"
-    initialize_account "${validator}" 2 "${num}"
+    initialize_account "${validator}" 2 "${num}" "$(( GENTX_AMOUNT + 1000000 ))"
     create_gentx "${validator}"
 }
 
@@ -115,9 +116,14 @@ import_modules() {
     for module in "${IMPORT_MODULES[@]}"; do
         import_module_params "${module}"
     done
-    # for code_id in ${SOURCE_CHAIN_CODE_IDS}; do
-    #     import_module_params "${code_id}"
-    # done
+    local code_id=0
+    for source_code_id in ${SOURCE_CHAIN_CODE_IDS}; do
+        code_id=$((code_id + 1))
+        local creator_address="${ABSTRAXION_ADDRESS}"
+        local code_bytes="$(${DAEMON_NAME} query wasm code "${source_code_id}" >(base64) --node "${SOURCE_CHAIN_RPC}" --output raw)"
+        local jq_script='.app_state.wasm.codes += [{ "code_id": $params["code_id"], "code_bytes": $params["code_bytes"], "creator": $params["creator_address"], "instantiate_permission": { "permission": "Everybody", "address": "", "addresses": [] }'
+        #modify_genesis_jq wasm "${jq_script}" "{\"code_id\": \"${code_id}\", \"code_bytes\": \"${code_bytes}\", \"creator_address\": \"${creator_address}\"}"
+    done
 }
 
 import_module_params() {
@@ -149,12 +155,13 @@ import_module_params() {
     params="$("${DAEMON_NAME}" query "$module" "$query" --node "${SOURCE_CHAIN_RPC}" --output json || echo "{}")"
 
     echo "Modifying $module $query..."
-    modify_genesis_jq "$jq_script" "$params"
+    modify_genesis_jq "$module", "$jq_script" "$params"
 }
 
 modify_genesis_jq() {
-    local jq_script="$1"
-    local params="$2"
+    local module="$1"
+    local jq_script="$2"
+    local params="$3"
     jq --arg module "$module" --argjson params "$params" \
         "$jq_script" "${DAEMON_HOME}/config/genesis.json" > "${TMP_DIR}/genesis.json"
     diff -u "${DAEMON_HOME}/config/genesis.json" "${TMP_DIR}/genesis.json" || true 
@@ -179,7 +186,7 @@ initialize_genesis() {
 
     if [[ -n "${MODIFY_GENESIS_JQ}" ]]; then
         echo "Modifying genesis.json..."
-        modify_genesis_jq "${MODIFY_GENESIS_JQ}" "{}"
+        modify_genesis_jq "" "${MODIFY_GENESIS_JQ}" "{}"
     fi
 
     echo "Collecting gentxs..."

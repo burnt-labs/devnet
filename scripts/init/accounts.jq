@@ -1,16 +1,16 @@
 #!/usr/bin/env jq
 
-# def add_code_id: 
-#     .app_state.wasm.codes += [{
-#         "code_id": $code_id,
-#         "code_bytes": $code_bytes,
-#         "creator": $creator_address,
-#         "instantiate_permission": {
-#             "permission": "Everybody",
-#             "address": "",
-#             "addresses": []
-#         }
-#     }];
+def add_code_id: 
+    .app_state.wasm.codes += [{
+        "code_id": $code_id,
+        "code_bytes": $code_bytes,
+        "creator": $creator_address,
+        "instantiate_permission": {
+            "permission": "Everybody",
+            "address": "",
+            "addresses": []
+        }
+    }];
 
 def add_genesis_account: 
     .app_state["auth"]["accounts"] += [{
@@ -28,7 +28,9 @@ def add_genesis_balance:
     }];
 
 def main:
-    f $execute == "add_genesis_balance" then add_genesis_balance
+    if $execute == "add_code_id" then add_code_id
+    if $execute == "add_genesis_account" then add_genesis_account
+    if $execute == "add_genesis_balance" then add_genesis_balance
     else error("Unknown function: " + $execute)
     end;
 

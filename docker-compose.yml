@@ -1,4 +1,18 @@
+
 services:
+  haproxy:
+    image: haproxy:2.9-alpine
+    networks:
+      - default
+    ports:
+      - 1317:1317
+      - 8444:8444
+      - 9090:9090
+      - 26657:26657
+      - 26658:26658
+    volumes:
+      - ./init/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+
   xion:
     image: ghcr.io/burnt-labs/xion/xion:${XION_VERSION:-latest}
     command: >
@@ -12,10 +26,11 @@ services:
         --grpc-web.enable \
         --minimum-gas-prices 0.025uxion \
         --rpc.laddr tcp://0.0.0.0:26657
-    entrypoint: /home/xiond/init/entrypoint.sh
     deploy:
       replicas: ${NUM_VALIDATORS:-3}
+    entrypoint: /home/xiond/init/entrypoint.sh
     environment:
+      ABSTRAXION_ADDRESS: ${ABSTRAXION_ADDRESS}
       CHAIN_ID: ${CHAIN_ID}
       DAEMON_HOME: ${DAEMON_HOME}
       DAEMON_NAME: ${DAEMON_NAME}
@@ -29,90 +44,120 @@ services:
       SOURCE_CHAIN_ID: ${SOURCE_CHAIN_ID:-""}
       SOURCE_CHAIN_RPC: ${SOURCE_CHAIN_RPC:-""}
       SOURCE_CHAIN_CODE_IDS: ${SOURCE_CHAIN_CODE_IDS:-()}
-    ports:
-      - 1317
-      - 26656
-      - 26657
-    healthcheck:
-      test: ["CMD-SHELL", "curl http://localhost:26657/status"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    user: root
-    working_dir: /home/${DAEMON_NAME}
     networks:
       - default
+    ports:
+      - 1317
+      - 9090
+      - 26656
+      - 26657
+    user: root 
     volumes:
       - /home/${DAEMON_NAME}
       - shared:/home/${DAEMON_NAME}/.shared
       - ./scripts/init:/home/${DAEMON_NAME}/init
+    working_dir: /home/${DAEMON_NAME}
 
-  xion-dashboard:
-    build:
-      context: xion-dashboard-app/
-      args:
-        ENV_FILE: .env.example
-    ports:
-      - "4173:4173"
-    user: root
-    networks:
-      - default
+  # xion-aa-api:
+  #   image: devnet/xion-api
+  #   build:
+  #     context: ./xion-aa-api
+  #   environment:
+  #     AWS_ACCESS_KEY_ID: "test"
+  #     AWS_SECRET_ACCESS_KEY: "test"
+  #     AWS_REGION: "us-east-1"
+  #   networks:
+  #     - default
+  #   ports:
+  #     - "8787:8787"
 
-  xion-developer-portal:
-    build:
-      context: xion-developer-portal/
-      args:
-        ENV_FILE: .env.example
-    ports:
-      - "5000:3000"
-    user: root
-    networks:
-      - default
+  # xion-assets:
+  #   image: devnet/xion-assets
+  #   build:
+  #     context: ./xion-assets
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - default
 
-  xion-explorer:
-    build:
-      context: xion-explorer/
-    ports:
-      - "3000:3000"
-    user: root
-    networks:
-      - default
+  # xion-dashboard:
+  #   image: devnet/xion-dashboard
+  #   build:
+  #     context: ./xion-dashboard-app
+  #     args: 
+  #       VITE_DEPLOYMENT_ENV: "devnet"
+  #   ports:
+  #     - "3000:3001"
+  #   networks:
+  #     - default
 
-  xion-staking:
-    build:
-      context: ./xion-staking
-    ports:
-      - 4000:4000
-    environment:
-      SAMPLE: sample
+  # xion-developer-portal:
+  #   image: devnet/xion-developer-portal
+  #   build:
+  #     context: ./xion-developer-portal
+  #     args: 
+  #       VITE_DEPLOYMENT_ENV: "devnet"
+  #   ports:
+  #     - "3000:3002"
+  #   networks:
+  #     - default
 
-  xion-aa-api:
-    build:
-      context: ./xion-aa-api
-    environment:
-      AWS_ACCESS_KEY_ID: "test"
-      AWS_SECRET_ACCESS_KEY: "test"
-      AWS_REGION: "us-east-1"
-    ports:
-      - "8787:8787"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/healthz/readiness"]
+  # xion-explorer:
+  #   image: devnet/xion-explorer
+  #   build:
+  #     context: ./xion-explorer
+  #     args: 
+  #       _DEPLOYMENT_ENV: "devnet" # need to implement envs in repo
+  #   ports:
+  #     - "3000:3003"
+  #   networks:
+  #     - default
 
-  localstack:
-    image: localstack/localstack
-    ports:
-      - "4566:4566"            # LocalStack Gateway
-      - "4571:4571"            # LocalStack SQS port (optional)
-      - "4510-4559:4510-4559"  # external services port range
-    environment:
-      - SERVICES=sqs,secretsmanager  # Specify the services you want to run (e.g., SQS)
-      - DEBUG=1                # Enable debug logging (optional)
-      - AWS_ACCESS_KEY_ID=test  # Default AWS credentials
-      - AWS_SECRET_ACCESS_KEY=test
-      - AWS_DEFAULT_REGION=us-east-1
-    volumes: # NOTICE: make sure that the file is executable [chmod +x scripts/init/init-aws-localstack.sh]
-      - "./scripts/init/init-aws-localstack.sh:/etc/localstack/init/ready.d/init-aws.sh"
-      - "./scripts/init/init-aws-secrets.json:/secrets.json"
+  # xion-faucet:
+  #   image: devnet/xion-explorer
+  #   build:
+  #     context: ./xion-explorer
+  #     args: 
+  #       _DEPLOYMENT_ENV: "devnet" # need to implement envs in repo
+  #   ports:
+  #     - "3000:3004"
+  #   networks:
+  #     - default
+
+  # xion-faucet-reloader:
+  #   image: devnet/xion-faucet-reloader
+  #   build:
+  #     context: ./xion-faucet/server/reloader
+  #   networks:
+  #     - default
+
+  # xion-staking:
+  #   image: devnet/xion-staking
+  #   build:
+  #     context: ./xion-staking
+  #     args: 
+  #       _DEPLOYMENT_ENV: "devnet" # need to implement envs in next repo
+  #   ports:
+  #     - "3000:3005"
+  #   networks:
+  #     - default
+
+  # localstack:
+  #   image: localstack/localstack
+  #   ports:
+  #     - "4566:4566"            # LocalStack Gateway
+  #     - "4571:4571"            # LocalStack SQS port (optional)
+  #     - "4510-4559:4510-4559"  # external services port range
+  #   environment:
+  #     - SERVICES=sqs,secretsmanager  # Specify the services you want to run (e.g., SQS)
+  #     - DEBUG=1                # Enable debug logging (optional)
+  #     - AWS_ACCESS_KEY_ID=test  # Default AWS credentials
+  #     - AWS_SECRET_ACCESS_KEY=test
+  #     - AWS_DEFAULT_REGION=us-east-1
+  #   volumes: # NOTICE: make sure that the file is executable [chmod +x scripts/init/init-aws-localstack.sh]
+  #     - "./scripts/init/init-aws-localstack.sh:/etc/localstack/init/ready.d/init-aws.sh"
+  #     - "./scripts/init/init-aws-secrets.json:/secrets.json"
+  #     # we do not have any secrets or sqs queues, the only thing we need is kms
 
 networks:
   default:
