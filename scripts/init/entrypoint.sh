@@ -60,6 +60,7 @@ select_num() {
     done
 }
 
+# Initialize the chain, this creates the genesis.json, config.toml and app.toml files
 initialize_chain() {
     local validator="$1"
     # Initialize the chain
@@ -68,18 +69,26 @@ initialize_chain() {
     ${ADD_INIT_FLAGS} > /dev/null 2>&1
 }
 
+# Initialize a single account
 initialize_account() {
     local validator="$1"
-    local num="$2"
+    local account="$2"
+    local index="$3"
     echo "Initializing account ${validator}..."
-    echo "${MNEMONIC}" | "${DAEMON_NAME}" keys add "${validator}" --account "${num}" --keyring-backend test --recover --output json >> "${HOME}/keys.json"
+    echo "${MNEMONIC}" | "${DAEMON_NAME}" keys add "${validator}" --account "${index}" --account "${index}" --keyring-backend test --recover --output json >> "${HOME}/keys.json"
     "${DAEMON_NAME}" "${GENESIS}" add-genesis-account "${validator}" "${GENESIS_AMOUNT}${DEFAULT_DENOM}" --keyring-backend test --append
 }
 
+# Initialize all accounts
 initialize_all_accounts() {
+    # Faucet
+    initialize_account "faucet" 0 0
+    # AAApi
+    initialize_account "abstraxion" 1 0
+    # Validators
     for num in $(seq 1 $((NUM_VALIDATORS - 1))); do
         local validator="${DAEMON_NAME}-${num}"
-        initialize_account "${validator}" "${num}"
+        initialize_account "${validator}" 2 "${num}"
     done
 }
 
@@ -87,7 +96,7 @@ initialize_validator() {
     local num="$1"
     local validator="${DAEMON_NAME}-${num}"
     initialize_chain "${validator}"
-    initialize_account "${validator}" "${num}"
+    initialize_account "${validator}" 2 "${num}"
     create_gentx "${validator}"
 }
 

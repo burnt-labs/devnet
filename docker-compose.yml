@@ -142,24 +142,6 @@ services:
       timeout: 5s
       retries: 5
 
-  redis:
-    image: redis:7-alpine3.19
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-
-  haproxy:
-    image: haproxy:2.9-alpine
-    ports:
-      - 1317:1317
-      - 8444:8444
-      - 9090:9090
-      - 26657:26657
-      - 26658:26658
-    volumes:
-      - ./scripts/init/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-
   localstack:
     image: localstack/localstack
     ports:

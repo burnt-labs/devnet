@@ -26,9 +26,6 @@
 	path = xion-assets
 	url = https://github.com/burnt-labs/xion-assets.git
 	branch = main
-[submodule "xion-indexer"]
-	path = xion-indexer
-	url = https://github.com/burnt-labs/xion-indexer.git
 [submodule "xion-aa-api"]
 	path = xion-aa-api
 	url = https://github.com/burnt-labs/account-abstraction-api.git
