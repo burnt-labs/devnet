@@ -59,18 +59,18 @@ services:
       - ./scripts/init:/home/${DAEMON_NAME}/init
     working_dir: /home/${DAEMON_NAME}
 
-  xion-aa-api:
-    image: devnet/xion-api
-    build:
-      context: ./xion-aa-api
-    environment:
-      AWS_ACCESS_KEY_ID: "test"
-      AWS_SECRET_ACCESS_KEY: "test"
-      AWS_REGION: "us-east-1"
-    networks:
-      - default
-    ports:
-      - "8787:8787"
+  # xion-aa-api:
+  #   image: devnet/xion-api
+  #   build:
+  #     context: ./xion-aa-api
+  #   environment:
+  #     AWS_ACCESS_KEY_ID: "test"
+  #     AWS_SECRET_ACCESS_KEY: "test"
+  #     AWS_REGION: "us-east-1"
+  #   networks:
+  #     - default
+  #   ports:
+  #     - "8787:8787"
 
   # xion-assets:
   #   image: devnet/xion-assets
@@ -103,16 +103,17 @@ services:
   #   networks:
   #     - default
 
-  # xion-explorer:
-  #   image: devnet/xion-explorer
-  #   build:
-  #     context: ./xion-explorer
-  #     args: 
-  #       _DEPLOYMENT_ENV: "devnet" # need to implement envs in repo
-  #   ports:
-  #     - "3000:3003"
-  #   networks:
-  #     - default
+  xion-explorer:
+    image: devnet/xion-explorer
+    build:
+      context: ./xion-explorer
+      args:
+        DEPLOYMENT_ENV: "devnet"
+    ports:
+      - "3003:3000"
+    networks:
+      - default
+
 
   # xion-faucet:
   #   image: devnet/xion-explorer
@@ -143,22 +144,22 @@ services:
   #   networks:
   #     - default
 
-  localstack:
-    image: localstack/localstack
-    ports:
-      - "4566:4566"            # LocalStack Gateway
-      - "4571:4571"            # LocalStack SQS port (optional)
-      - "4510-4559:4510-4559"  # external services port range
-    environment:
-      - SERVICES=sqs,secretsmanager  # Specify the services you want to run (e.g., SQS)
-      - DEBUG=1                # Enable debug logging (optional)
-      - AWS_ACCESS_KEY_ID=test  # Default AWS credentials
-      - AWS_SECRET_ACCESS_KEY=test
-      - AWS_DEFAULT_REGION=us-east-1
-    volumes: # NOTICE: make sure that the file is executable [chmod +x scripts/init/init-aws-localstack.sh]
-      - "./scripts/init/init-aws-localstack.sh:/etc/localstack/init/ready.d/init-aws.sh"
-      - "./scripts/init/init-aws-secrets.json:/secrets.json"
-      # we do not have any secrets or sqs queues, the only thing we need is kms
+  # localstack:
+  #   image: localstack/localstack
+  #   ports:
+  #     - "4566:4566"            # LocalStack Gateway
+  #     - "4571:4571"            # LocalStack SQS port (optional)
+  #     - "4510-4559:4510-4559"  # external services port range
+  #   environment:
+  #     - SERVICES=sqs,secretsmanager  # Specify the services you want to run (e.g., SQS)
+  #     - DEBUG=1                # Enable debug logging (optional)
+  #     - AWS_ACCESS_KEY_ID=test  # Default AWS credentials
+  #     - AWS_SECRET_ACCESS_KEY=test
+  #     - AWS_DEFAULT_REGION=us-east-1
+  #   volumes: # NOTICE: make sure that the file is executable [chmod +x scripts/init/init-aws-localstack.sh]
+  #     - "./scripts/init/init-aws-localstack.sh:/etc/localstack/init/ready.d/init-aws.sh"
+  #     - "./scripts/init/init-aws-secrets.json:/secrets.json"
+  #     # we do not have any secrets or sqs queues, the only thing we need is kms
 
 networks:
   default:

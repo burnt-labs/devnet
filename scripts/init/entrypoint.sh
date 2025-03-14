@@ -197,10 +197,10 @@ initialize_genesis() {
     done
     initialize_all_accounts
 
-    # if [[ -n "${SOURCE_CHAIN_ID}" ]]; then
-    #     echo "Importing module settings from ${SOURCE_CHAIN_ID}..."
-    #     import_modules
-    # fi
+    if [[ -n "${SOURCE_CHAIN_ID}" ]]; then
+        echo "Importing module settings from ${SOURCE_CHAIN_ID}..."
+        import_modules
+    fi
 
     if [[ -n "${SOURCE_CHAIN_CODE_IDS}" ]]; then
         echo "Importing contracts ${SOURCE_CHAIN_CODE_IDS} from ${SOURCE_CHAIN_ID}..."
