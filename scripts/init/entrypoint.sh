@@ -116,14 +116,6 @@ import_modules() {
     for module in "${IMPORT_MODULES[@]}"; do
         import_module_params "${module}"
     done
-    local code_id=0
-    for source_code_id in ${SOURCE_CHAIN_CODE_IDS}; do
-        code_id=$((code_id + 1))
-        local creator_address="${ABSTRAXION_ADDRESS}"
-        local code_bytes="$(${DAEMON_NAME} query wasm code "${source_code_id}" >(base64) --node "${SOURCE_CHAIN_RPC}" --output raw)"
-        local jq_script='.app_state.wasm.codes += [{ "code_id": $params["code_id"], "code_bytes": $params["code_bytes"], "creator": $params["creator_address"], "instantiate_permission": { "permission": "Everybody", "address": "", "addresses": [] }'
-        #modify_genesis_jq wasm "${jq_script}" "{\"code_id\": \"${code_id}\", \"code_bytes\": \"${code_bytes}\", \"creator_address\": \"${creator_address}\"}"
-    done
 }
 
 import_module_params() {
@@ -158,6 +150,32 @@ import_module_params() {
     modify_genesis_jq "$module", "$jq_script" "$params"
 }
 
+import_contracts() {
+    local code_id=0
+    for source_code_id in ${SOURCE_CHAIN_CODE_IDS}; do
+        code_id=$((code_id + 1))
+        ${DAEMON_NAME} query wasm code "${source_code_id}" ${TMP_DIR}/code-bytes.wasm --node "${SOURCE_CHAIN_RPC}" --output raw
+        local code_hash=$(sha256sum ${TMP_DIR}/code-bytes.wasm | head -c 64 | xxd -r -p | base64)
+        base64 -i ${TMP_DIR}/code-bytes.wasm | jq -Rs \
+            --arg code_id $code_id \
+            --arg code_hash $code_hash \
+            --arg pinned false \
+            --arg creator ${ABSTRAXION_ADDRESS} \
+            '{"code_bytes": ., "code_id": $code_id, "creator": $creator, "code_hash": $code_hash, "pinned": $pinned}' \
+            > "${TMP_DIR}/code-bytes.json"
+        jq -f ${SCRIPTS_DIR}/accounts.jq \
+            --arg execute add_code_id \
+            --slurpfile vars "${TMP_DIR}/code-bytes.json" \
+            "${DAEMON_HOME}/config/genesis.json" > "${TMP_DIR}/genesis.json" 
+        mv "${TMP_DIR}/genesis.json" "${DAEMON_HOME}/config/genesis.json"
+    done
+    jq -f ${SCRIPTS_DIR}/accounts.jq \
+        --arg execute add_sequences \
+        --argjson vars "{\"lastCodeId\": $((code_id + 1)), \"lastContractId\": ${code_id}}" \
+        "${DAEMON_HOME}/config/genesis.json" > "${TMP_DIR}/genesis.json" 
+        mv "${TMP_DIR}/genesis.json" "${DAEMON_HOME}/config/genesis.json"
+}
+
 modify_genesis_jq() {
     local module="$1"
     local jq_script="$2"
@@ -179,9 +197,14 @@ initialize_genesis() {
     done
     initialize_all_accounts
 
-    if [[ -n "${SOURCE_CHAIN_ID}" ]]; then
-        echo "Importing module settings from ${SOURCE_CHAIN_ID}..."
-        import_modules
+    # if [[ -n "${SOURCE_CHAIN_ID}" ]]; then
+    #     echo "Importing module settings from ${SOURCE_CHAIN_ID}..."
+    #     import_modules
+    # fi
+
+    if [[ -n "${SOURCE_CHAIN_CODE_IDS}" ]]; then
+        echo "Importing contracts ${SOURCE_CHAIN_CODE_IDS} from ${SOURCE_CHAIN_ID}..."
+        import_contracts
     fi
 
     if [[ -n "${MODIFY_GENESIS_JQ}" ]]; then
