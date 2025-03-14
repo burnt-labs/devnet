@@ -108,7 +108,7 @@ services:
     build:
       context: ./xion-explorer
       args:
-        DEPLOYMENT_ENV: "devnet"
+        VITE_DEPLOYMENT_ENV: "devnet"
     ports:
       - "3003:3000"
     networks:
