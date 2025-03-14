@@ -29,7 +29,7 @@ services:
       SOURCE_CHAIN_ID: ${SOURCE_CHAIN_ID:-""}
       SOURCE_CHAIN_RPC: ${SOURCE_CHAIN_RPC:-""}
       SOURCE_CHAIN_CODE_IDS: ${SOURCE_CHAIN_CODE_IDS:-()}
-    ports:
+    ports: # notice: host_port:container_port
       - 1317
       - 26656
       - 26657
@@ -47,6 +47,18 @@ services:
       - shared:/home/${DAEMON_NAME}/.shared
       - ./scripts/init:/home/${DAEMON_NAME}/init
 
+  xion-aa-api:
+    build:
+      context: ./xion-aa-api
+    environment:
+      AWS_ACCESS_KEY_ID: "test"
+      AWS_SECRET_ACCESS_KEY: "test"
+      AWS_REGION: "us-east-1"
+    ports: # notice: host_port:container_port
+      - "8787:8787"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/healthz/readiness"]
+
   xion-dashboard:
     build:
       context: xion-dashboard-app/
@@ -55,6 +67,28 @@ services:
     ports:
       - "4173:4173"
     user: root
+    depends_on:
+      "xion-aa-api":
+        condition: service_healthy
+    networks:
+      - default
+
+  xion-staking:
+    build:
+      context: ./xion-staking
+    ports: # notice: host_port:container_port
+      - "4000:4000"
+    environment:
+      SAMPLE: sample
+
+  xion-explorer:
+    build:
+      context: xion-explorer/
+      args:
+        VITE_DEPLOYMENT_ENV: devnet
+    ports: # notice: host_port:container_port
+      - "3000:3000"
+    #user: root
     networks:
       - default
 
@@ -62,78 +96,47 @@ services:
     build:
       context: xion-developer-portal/
       args:
-        ENV_FILE: .env.example
-    ports:
-      - "5000:3000"
+        VITE_DEPLOYMENT_ENV: .env.testnet2
+    ports: # notice: host_port:container_port
+      - "3001:3000"
     user: root
+    depends_on:
+      "xion-dashboard":
+        condition: service_healthy
     networks:
       - default
 
-  xion-explorer:
+  xion-faucet:
     build:
-      context: xion-explorer/
-    ports:
-      - "3000:3000"
-    user: root
+      context: xion-faucet/
+      args:
+        ENV_FILE: .env.devnet
+    ports: # notice: host_port:container_port
+      - "3002:3000"
+    #user: root
+    depends_on:
+      "xion-dashboard":
+        condition: service_healthy
     networks:
       - default
 
-  xion-staking:
+  xion-assets:
     build:
-      context: ./xion-staking
-    ports:
-      - 4000:4000
-    environment:
-      SAMPLE: sample
-
-  xion-aa-api:
-    build:
-      context: ./xion-aa-api
-    environment:
-      AWS_ACCESS_KEY_ID: "test"
-      AWS_SECRET_ACCESS_KEY: "test"
-      AWS_REGION: "us-east-1"
-    ports:
-      - "8787:8787"
-#    depends_on:
-#      xion-aa-worker:
-#        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/healthz/readiness"]
-
-#  xion-aa-worker:
-#    build:
-#      context: ./xion-aa-api
-#      target: worker
-#    environment:
-#      AWS_ACCESS_KEY_ID: "test"
-#      AWS_SECRET_ACCESS_KEY: "test"
-#      #
-#      CODE_ID: 21
-#      CHECKSUM: "8B8F156A0E4BF502C1ED15CB992ED8D92AD8C103CFD1611E7970D4D9FDF44BC4"
-#      #STYTCH_PROJECT_ID: "project-live-7e4a3221-79cd-4f34-ac1d-fedac4bde13e"
-#      STYTCH_PROJECT_ID: "project-test-5ae234a7-6b74-46af-a7b7-969f3df38cc0"
-#      STYTCH_SECRET: "secret-test-RNMAciCGC1btTKxDUssUdEOiugxoBm8rwzQ="
-#      STYTCH_API_URL: "https://api.stytch.com/v1/"
-#      STYTCH_PASSWD: "bogusPassword420++"
-#      XION_AA_API_URL: "http://localhost:3000/api/v1"
-#      PRIVATE_KEY: "f19c6b623a2d32de53c70bb5aff0e68dc2dc7ee2e3620259dbb6527eff88a392"
-#    env_file:
-#      - .env
-#    depends_on:
-#      localstack:
-#        condition: service_healthy
-#      redis:
-#        condition: service_healthy
-#    healthcheck:
-#      test: ["CMD", "curl", "-f", "http://localhost:3001/healthz/readiness"]
+      context: xion-assets/
+      #args:
+      #  ENV_FILE: .env.devnet
+    ports: # notice: host_port:container_port
+      - "3003:3000"
+    #user: root
+    networks:
+      - default
 
   postgres:
     build:
       context: ./xion-indexer
       dockerfile: ./docker/pg-Dockerfile
-    ports:
-      - 5432:5432
+    ports: # notice: host_port:container_port
+      - "5432:5432"
     environment:
       POSTGRES_PASSWORD: postgres
     healthcheck:
@@ -144,34 +147,34 @@ services:
 
   redis:
     image: redis:7-alpine3.19
-    ports:
+    ports: # notice: host_port:container_port
       - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
 
   haproxy:
     image: haproxy:2.9-alpine
-    ports:
-      - 1317:1317
-      - 8444:8444
-      - 9090:9090
-      - 26657:26657
-      - 26658:26658
+    ports: # notice: host_port:container_port
+      - "1317:1317"
+      - "8444:8444"
+      - "9090:9090"
+      - "26657:26657"
+      - "26658:26658"
     volumes:
       - ./scripts/init/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 
   localstack:
     image: localstack/localstack
-    ports:
+    ports: # notice: host_port:container_port
       - "4566:4566"            # LocalStack Gateway
       - "4571:4571"            # LocalStack SQS port (optional)
       - "4510-4559:4510-4559"  # external services port range
     environment:
-      - SERVICES=sqs,secretsmanager  # Specify the services you want to run (e.g., SQS)
-      - DEBUG=1                # Enable debug logging (optional)
-      - AWS_ACCESS_KEY_ID=test  # Default AWS credentials
-      - AWS_SECRET_ACCESS_KEY=test
-      - AWS_DEFAULT_REGION=us-east-1
+      SERVICES: "sqs,secretsmanager,kms"  # Specify the services you want to run (e.g., SQS)
+      DEBUG: 1                        # Enable debug logging (optional)
+      AWS_ACCESS_KEY_ID: "test"       # Default AWS credentials
+      AWS_SECRET_ACCESS_KEY: "test"
+      AWS_DEFAULT_REGION: "us-east-1"
     volumes: # NOTICE: make sure that the file is executable [chmod +x scripts/init/init-aws-localstack.sh]
       - "./scripts/init/init-aws-localstack.sh:/etc/localstack/init/ready.d/init-aws.sh"
       - "./scripts/init/init-aws-secrets.json:/secrets.json"
