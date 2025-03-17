@@ -50,14 +50,16 @@ services:
   xion-aa-api:
     build:
       context: ./xion-aa-api
-    environment:
-      AWS_ACCESS_KEY_ID: "test"
-      AWS_SECRET_ACCESS_KEY: "test"
-      AWS_REGION: "us-east-1"
+#    environment:
+#      AWS_ACCESS_KEY_ID: "test"
+#      AWS_SECRET_ACCESS_KEY: "test"
+#      AWS_REGION: "us-east-1"
     ports: # notice: host_port:container_port
       - "8787:8787"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/healthz/readiness"]
+    networks:
+      - default
 
   xion-dashboard:
     build:
@@ -66,20 +68,30 @@ services:
         ENV_FILE: .env.example
     ports:
       - "4173:4173"
-    user: root
     depends_on:
       "xion-aa-api":
         condition: service_healthy
+    user: root
     networks:
       - default
 
   xion-staking:
     build:
       context: ./xion-staking
-    ports: # notice: host_port:container_port
-      - "4000:4000"
     environment:
-      SAMPLE: sample
+      ENV NEXT_PUBLIC_IS_DEPLOYMENT: "false"
+      NEXT_PUBLIC_IS_PRO_MODE: "false"
+      NEXT_PUBLIC_NETWORK_TYPE: "testnet"
+      NEXT_PUBLIC_RPC_ENDPOINT: "http://localhost:26657"
+      VITE_FEE_GRANTER_ADDRESS: "xion1e2fuwe3uhq8zd9nkkk876nawrwdulgv460vzg7"
+    ports: # notice: host_port:container_port
+      - "8788:8788"
+    depends_on:
+      "xion-aa-api":
+        condition: service_healthy
+    #user: root
+    networks:
+      - default
 
   xion-explorer:
     build:
@@ -99,10 +111,10 @@ services:
         VITE_DEPLOYMENT_ENV: .env.testnet2
     ports: # notice: host_port:container_port
       - "3001:3000"
-    user: root
     depends_on:
       "xion-dashboard":
         condition: service_healthy
+    user: root
     networks:
       - default
 
@@ -114,9 +126,17 @@ services:
     ports: # notice: host_port:container_port
       - "3002:3000"
     #user: root
-    depends_on:
-      "xion-dashboard":
-        condition: service_healthy
+    networks:
+      - default
+
+  xion-faucet-reloader:
+    build:
+      context: xion-faucet/server/reloader
+      args:
+        ENV_FILE: .dev.vars.example
+    ports: # notice: host_port:container_port
+      - "3003:3000"
+    #user: root
     networks:
       - default
 
@@ -126,7 +146,7 @@ services:
       #args:
       #  ENV_FILE: .env.devnet
     ports: # notice: host_port:container_port
-      - "3003:3000"
+      - "3004:3000"
     #user: root
     networks:
       - default
@@ -153,7 +173,7 @@ services:
       test: ["CMD", "redis-cli", "ping"]
 
   haproxy:
-    image: haproxy:2.9-alpine
+    image: haproxy:3.1.5-alpine
     ports: # notice: host_port:container_port
       - "1317:1317"
       - "8444:8444"
@@ -176,8 +196,7 @@ services:
       AWS_SECRET_ACCESS_KEY: "test"
       AWS_DEFAULT_REGION: "us-east-1"
     volumes: # NOTICE: make sure that the file is executable [chmod +x scripts/init/init-aws-localstack.sh]
-      - "./scripts/init/init-aws-localstack.sh:/etc/localstack/init/ready.d/init-aws.sh"
-      - "./scripts/init/init-aws-secrets.json:/secrets.json"
+      - "./scripts/bootstrap:/etc/localstack/init/ready.d/"
 
 networks:
   default:
