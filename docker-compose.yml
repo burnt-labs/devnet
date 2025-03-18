@@ -1,3 +1,4 @@
+# Put instructions in the README.md file not here
 ###### USAGE GUIDE
 # Bring it up with : docker compose up -d
 # If you make any changes to any Dockerfile and you wanna rebuilt a specific image: docker compose up -d --build [service_name] eg xion-aa-api
@@ -5,6 +6,21 @@
 ######
 
 services:
+  haproxy:
+    image: haproxy:2.9-alpine
+    depends_on:
+      - xion
+    networks:
+      - default
+    ports:
+      - 1317:1317
+      - 8444:8444
+      - 9090:9090
+      - 26657:26657
+      - 26658:26658
+    volumes:
+      - ./init/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+
   xion:
     image: ghcr.io/burnt-labs/xion/xion:${XION_VERSION:-latest}
     #build:
@@ -37,7 +53,7 @@ services:
       SOURCE_CHAIN_ID: ${SOURCE_CHAIN_ID:-""}
       SOURCE_CHAIN_RPC: ${SOURCE_CHAIN_RPC:-""}
       SOURCE_CHAIN_CODE_IDS: ${SOURCE_CHAIN_CODE_IDS:-()}
-    ports: # notice: host_port:container_port
+    ports:
       - 1317
       - 26656
       - 26657
@@ -58,7 +74,7 @@ services:
   xion-aa-api:
     build:
       context: ./xion-aa-api
-    ports: # notice: host_port:container_port
+    ports:
       - "3000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/healthz/readiness"]
@@ -90,12 +106,11 @@ services:
       NEXT_PUBLIC_NETWORK_TYPE: "testnet"
       NEXT_PUBLIC_RPC_ENDPOINT: "http://localhost:26657"
       VITE_FEE_GRANTER_ADDRESS: "xion1e2fuwe3uhq8zd9nkkk876nawrwdulgv460vzg7"
-    ports: # notice: host_port:container_port
+    ports:
       - "8788"
     depends_on:
       "xion-aa-api":
         condition: service_healthy
-    #user: root
     networks:
       - default
 
@@ -104,9 +119,8 @@ services:
       context: xion-explorer/
       args:
         VITE_DEPLOYMENT_ENV: devnet
-    ports: # notice: host_port:container_port
+    ports:
       - "3000"
-    #user: root
     networks:
       - default
 
@@ -115,12 +129,11 @@ services:
       context: xion-developer-portal/
       args:
         VITE_DEPLOYMENT_ENV: .env.testnet2
-    ports: # notice: host_port:container_port
+    ports:
       - "3000"
     depends_on:
       "xion-dashboard":
         condition: service_healthy
-    user: root
     networks:
       - default
 
@@ -129,9 +142,8 @@ services:
       context: xion-faucet/
       args:
         ENV_FILE: .env.devnet
-    ports: # notice: host_port:container_port
+    ports:
       - "3000"
-    #user: root
     networks:
       - default
 
@@ -140,58 +152,25 @@ services:
       context: xion-faucet/server/reloader
       args:
         ENV_FILE: .dev.vars.example
-    ports: # notice: host_port:container_port
+    ports:
       - "3000"
-    #user: root
     networks:
       - default
 
   xion-assets:
     build:
       context: xion-assets/
-      #args:
-      #  ENV_FILE: .env.devnet
-    ports: # notice: host_port:container_port
+      args:
+        ENV_FILE: .env.devnet
+    ports:
       - "3000"
-    #user: root
     networks:
       - default
 
-  postgres:
-    build:
-      context: ./xion-indexer
-      dockerfile: ./docker/pg-Dockerfile
-    ports: # notice: host_port:container_port
-      - "5432:5432"
-    environment:
-      POSTGRES_PASSWORD: postgres
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
-  redis:
-    image: redis:7-alpine3.19
-    ports: # notice: host_port:container_port
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-
-  haproxy:
-    image: haproxy:3.1.5-alpine
-    ports: # notice: host_port:container_port
-      - "1317:1317"
-      - "8444:8444"
-      - "9090:9090"
-      - "26657:26657"
-      - "26658:26658"
-    volumes:
-      - ./scripts/init/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-
+# still don't need sqs or secretsmanager
   localstack:
     image: localstack/localstack
-    ports: # notice: host_port:container_port
+    ports:
       - "4566:4566"            # LocalStack Gateway
       - "4571:4571"            # LocalStack SQS port (optional)
       - "4510-4559:4510-4559"  # external services port range
