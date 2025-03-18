@@ -1,6 +1,14 @@
+###### USAGE GUIDE
+# Bring it up with : docker compose up -d
+# If you make any changes to any Dockerfile and you wanna rebuilt a specific image: docker compose up -d --build [service_name] eg xion-aa-api
+# Remove everything : docker-compose down --volumes
+######
+
 services:
   xion:
     image: ghcr.io/burnt-labs/xion/xion:${XION_VERSION:-latest}
+    #build:
+    #  context: ./xion
     command: >
       /usr/bin/cosmovisor run start \
         --api.address tcp://0.0.0.0:1317 \
@@ -50,14 +58,10 @@ services:
   xion-aa-api:
     build:
       context: ./xion-aa-api
-#    environment:
-#      AWS_ACCESS_KEY_ID: "test"
-#      AWS_SECRET_ACCESS_KEY: "test"
-#      AWS_REGION: "us-east-1"
     ports: # notice: host_port:container_port
-      - "8787:8787"
+      - "3000"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/healthz/readiness"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/healthz/readiness"]
     networks:
       - default
 
@@ -67,10 +71,12 @@ services:
       args:
         ENV_FILE: .env.example
     ports:
-      - "4173:4173"
+      - "4173"
     depends_on:
       "xion-aa-api":
         condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:4173" ]
     user: root
     networks:
       - default
@@ -85,7 +91,7 @@ services:
       NEXT_PUBLIC_RPC_ENDPOINT: "http://localhost:26657"
       VITE_FEE_GRANTER_ADDRESS: "xion1e2fuwe3uhq8zd9nkkk876nawrwdulgv460vzg7"
     ports: # notice: host_port:container_port
-      - "8788:8788"
+      - "8788"
     depends_on:
       "xion-aa-api":
         condition: service_healthy
@@ -99,7 +105,7 @@ services:
       args:
         VITE_DEPLOYMENT_ENV: devnet
     ports: # notice: host_port:container_port
-      - "3000:3000"
+      - "3000"
     #user: root
     networks:
       - default
@@ -110,7 +116,7 @@ services:
       args:
         VITE_DEPLOYMENT_ENV: .env.testnet2
     ports: # notice: host_port:container_port
-      - "3001:3000"
+      - "3000"
     depends_on:
       "xion-dashboard":
         condition: service_healthy
@@ -124,7 +130,7 @@ services:
       args:
         ENV_FILE: .env.devnet
     ports: # notice: host_port:container_port
-      - "3002:3000"
+      - "3000"
     #user: root
     networks:
       - default
@@ -135,7 +141,7 @@ services:
       args:
         ENV_FILE: .dev.vars.example
     ports: # notice: host_port:container_port
-      - "3003:3000"
+      - "3000"
     #user: root
     networks:
       - default
@@ -146,7 +152,7 @@ services:
       #args:
       #  ENV_FILE: .env.devnet
     ports: # notice: host_port:container_port
-      - "3004:3000"
+      - "3000"
     #user: root
     networks:
       - default
