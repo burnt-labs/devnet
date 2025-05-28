@@ -1,13 +1,8 @@
-# Put instructions in the README.md file not here
-###### USAGE GUIDE
-# Bring it up with : docker compose up -d
-# If you make any changes to any Dockerfile and you wanna rebuilt a specific image: docker compose up -d --build [service_name] eg xion-aa-api
-# Remove everything : docker-compose down --volumes
-######
-
 services:
   haproxy:
     image: haproxy:2.9-alpine
+    command: >
+      haproxy -f /usr/local/etc/haproxy/haproxy.cfg
     depends_on:
       - xion
     networks:
@@ -19,14 +14,14 @@ services:
       - 26657:26657
       - 26658:26658
     volumes:
-      - ./init/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - ./config/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
 
   xion:
-    image: ghcr.io/burnt-labs/xion/xion:${XION_VERSION:-latest}
-    #build:
-    #  context: ./xion
+    image: ghcr.io/burnt-labs/xion/xion:${XIOND_VERSION:-latest}
+    # build:
+    #   context: ./xion
     command: >
-      /usr/bin/cosmovisor run start \
+      sleep 500 && /usr/bin/cosmovisor run start \
         --api.address tcp://0.0.0.0:1317 \
         --api.enable true \
         --api.enabled-unsafe-cors true \
@@ -34,25 +29,13 @@ services:
         --grpc.enable true \
         --grpc.address 0.0.0.0:9090 \
         --grpc-web.enable \
-        --minimum-gas-prices 0.025uxion \
-        --rpc.laddr tcp://0.0.0.0:26657
+        --minimum-gas-prices 0.001uxion \
+        --rpc.laddr tcp://0.0.0.0:26657 
     entrypoint: /home/xiond/init/entrypoint.sh
     deploy:
       replicas: ${NUM_VALIDATORS:-3}
-    environment:
-      CHAIN_ID: ${CHAIN_ID}
-      DAEMON_HOME: ${DAEMON_HOME}
-      DAEMON_NAME: ${DAEMON_NAME}
-      DEFAULT_DENOM: ${DEFAULT_DENOM}
-      DENOM_METADATA_NAME: ${DENOM_METADATA_NAME}
-      GENESIS_AMOUNT: ${GENESIS_AMOUNT}
-      GENTX_AMOUNT: ${GENTX_AMOUNT}
-      MNEMONIC: ${MNEMONIC}
-      MODIFY_GENESIS_JQ: ${MODIFY_GENESIS_JQ}
-      NUM_VALIDATORS: ${NUM_VALIDATORS:-3}
-      SOURCE_CHAIN_ID: ${SOURCE_CHAIN_ID:-""}
-      SOURCE_CHAIN_RPC: ${SOURCE_CHAIN_RPC:-""}
-      SOURCE_CHAIN_CODE_IDS: ${SOURCE_CHAIN_CODE_IDS:-()}
+    env_file:
+      - .env
     ports:
       - 1317
       - 26656
@@ -70,49 +53,57 @@ services:
       - /home/${DAEMON_NAME}
       - shared:/home/${DAEMON_NAME}/.shared
       - ./scripts/init:/home/${DAEMON_NAME}/init
+      - ../xion/dist/xiond_linux_arm64_v8.0/bin/xiond-linux-arm64/:/home/${DAEMON_NAME}/.xiond/cosmovisor/genesis/bin/xiond
+      - ../xion/dist/xiond_linux_arm64_v8.0/bin/xiond-linux-arm64/:/home/${DAEMON_NAME}/.xiond/cosmovisor/upgrades/v19/bin/xiond
 
-  xion-aa-api:
-    build:
-      context: ./xion-aa-api
-    ports:
-      - "3000"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/healthz/readiness"]
-    networks:
-      - default
+  # xion-aa-api:
+  #   build:
+  #     context: ./xion-aa-api
+  #   ports:
+  #     - "3000"
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:3000/api/v1/healthz/readiness"]
+  #   networks:
+  #     - default
 
-  xion-dashboard:
-    build:
-      context: xion-dashboard-app/
-      args:
-        ENV_FILE: .env.example
-    ports:
-      - "4173"
-    depends_on:
-      "xion-aa-api":
-        condition: service_healthy
-    healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:4173" ]
-    user: root
-    networks:
-      - default
+  # xion-assets:
+  #   build:
+  #     context: xion-assets/
+  #     args:
+  #       ENV_FILE: .env.devnet
+  #   ports:
+  #     - "3000"
+  #   networks:
+  #     - default
 
-  xion-staking:
-    build:
-      context: ./xion-staking
-    environment:
-      ENV NEXT_PUBLIC_IS_DEPLOYMENT: "false"
-      NEXT_PUBLIC_IS_PRO_MODE: "false"
-      NEXT_PUBLIC_NETWORK_TYPE: "testnet"
-      NEXT_PUBLIC_RPC_ENDPOINT: "http://localhost:26657"
-      VITE_FEE_GRANTER_ADDRESS: "xion1e2fuwe3uhq8zd9nkkk876nawrwdulgv460vzg7"
-    ports:
-      - "8788"
-    depends_on:
-      "xion-aa-api":
-        condition: service_healthy
-    networks:
-      - default
+  # xion-dashboard:
+  #   build:
+  #     context: xion-dashboard-app/
+  #     args:
+  #       ENV_FILE: .env.example
+  #   ports:
+  #     - "4173"
+  #   depends_on:
+  #     "xion-aa-api":
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: [ "CMD", "curl", "-f", "http://localhost:4173" ]
+  #   user: root
+  #   networks:
+  #     - default
+
+  # xion-developer-portal:
+  #   build:
+  #     context: xion-developer-portal/
+  #     args:
+  #       VITE_DEPLOYMENT_ENV: .env.testnet2
+  #   ports:
+  #     - "3000"
+  #   depends_on:
+  #     "xion-dashboard":
+  #       condition: service_healthy
+  #   networks:
+  #     - default
 
   xion-explorer:
     build:
@@ -120,20 +111,7 @@ services:
       args:
         VITE_DEPLOYMENT_ENV: devnet
     ports:
-      - "3000"
-    networks:
-      - default
-
-  xion-developer-portal:
-    build:
-      context: xion-developer-portal/
-      args:
-        VITE_DEPLOYMENT_ENV: .env.testnet2
-    ports:
-      - "3000"
-    depends_on:
-      "xion-dashboard":
-        condition: service_healthy
+      - "5173"
     networks:
       - default
 
@@ -141,47 +119,30 @@ services:
     build:
       context: xion-faucet/
       args:
-        ENV_FILE: .env.devnet
+        DOTENV_FILE: .env.example
+    env_file:
+      - ./xion-faucet/.env.example
     ports:
       - "3000"
     networks:
       - default
 
-  xion-faucet-reloader:
-    build:
-      context: xion-faucet/server/reloader
-      args:
-        ENV_FILE: .dev.vars.example
-    ports:
-      - "3000"
-    networks:
-      - default
-
-  xion-assets:
-    build:
-      context: xion-assets/
-      args:
-        ENV_FILE: .env.devnet
-    ports:
-      - "3000"
-    networks:
-      - default
-
-# still don't need sqs or secretsmanager
-  localstack:
-    image: localstack/localstack
-    ports:
-      - "4566:4566"            # LocalStack Gateway
-      - "4571:4571"            # LocalStack SQS port (optional)
-      - "4510-4559:4510-4559"  # external services port range
-    environment:
-      SERVICES: "sqs,secretsmanager,kms"  # Specify the services you want to run (e.g., SQS)
-      DEBUG: 1                        # Enable debug logging (optional)
-      AWS_ACCESS_KEY_ID: "test"       # Default AWS credentials
-      AWS_SECRET_ACCESS_KEY: "test"
-      AWS_DEFAULT_REGION: "us-east-1"
-    volumes: # NOTICE: make sure that the file is executable [chmod +x scripts/init/init-aws-localstack.sh]
-      - "./scripts/bootstrap:/etc/localstack/init/ready.d/"
+  # xion-staking:
+  #   build:
+  #     context: ./xion-staking
+  #   environment:
+  #     ENV NEXT_PUBLIC_IS_DEPLOYMENT: "false"
+  #     NEXT_PUBLIC_IS_PRO_MODE: "false"
+  #     NEXT_PUBLIC_NETWORK_TYPE: "testnet"
+  #     NEXT_PUBLIC_RPC_ENDPOINT: "http://localhost:26657"
+  #     VITE_FEE_GRANTER_ADDRESS: "xion1e2fuwe3uhq8zd9nkkk876nawrwdulgv460vzg7"
+  #   ports:
+  #     - "8788"
+  #   depends_on:
+  #     "xion-aa-api":
+  #       condition: service_healthy
+  #   networks:
+  #     - default
 
 networks:
   default:

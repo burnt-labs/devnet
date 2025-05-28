@@ -71,21 +71,26 @@ initialize_chain() {
 
 # Initialize a single account
 initialize_account() {
-    local validator="$1"
+    local name="$1"
     local account="$2"
     local index="$3"
     local amount="${4}"
-    echo "Initializing account ${validator}..."
-    echo "${MNEMONIC}" | "${DAEMON_NAME}" keys add "${validator}" --account "${account}" --index "${index}" --keyring-backend test --recover --output json >> "${HOME}/keys.json"
-    "${DAEMON_NAME}" "${GENESIS}" add-genesis-account "${validator}" "${amount}${DEFAULT_DENOM}" --keyring-backend test --append
+    echo "Initializing account ${name}..."
+    echo "${MNEMONIC}" | "${DAEMON_NAME}" keys add "${name}" --account "${account}" --index "${index}" --keyring-backend test --recover --output json >> "${HOME}/keys.json"
+    "${DAEMON_NAME}" "${GENESIS}" add-genesis-account "${name}" "${amount}${DEFAULT_DENOM}" --keyring-backend test --append
 }
 
 # Initialize all accounts
 initialize_all_accounts() {
+    # AA Api
+    initialize_account "abstraxion" 1 0 $(( GENESIS_AMOUNT ))
+
     # Faucet
     initialize_account "faucet" 0 0 $(( GENESIS_AMOUNT ))
-    # AAApi
-    initialize_account "abstraxion" 1 0 $(( GENESIS_AMOUNT ))
+    for num in $(seq 1 ${FAUCET_ACCOUNTS}); do
+        initialize_account "faucet-${num}" 0 "${num}" "$(( FAUCET_AMOUNT ))"
+    done
+
     # Validators
     for num in $(seq 1 $((NUM_VALIDATORS - 1))); do
         local validator="${DAEMON_NAME}-${num}"
@@ -99,6 +104,15 @@ initialize_validator() {
     initialize_chain "${validator}"
     initialize_account "${validator}" 2 "${num}" "$(( GENTX_AMOUNT + 1000000 ))"
     create_gentx "${validator}"
+    modify_config_toml "${validator}"
+}
+
+modify_config_toml() {
+    local validator="$1"
+    echo "Modifying config.toml for ${validator}..."
+    # Modify the config.toml file
+    sed -i "s/^addr_book_strict =.*$/addr_book_strict = false/" "${DAEMON_HOME}/config/config.toml"
+    sed -i "s/^timeout_commit =.*$/timeout_commit = \"1s\"/" "${DAEMON_HOME}/config/config.toml"
 }
 
 create_gentx() {
@@ -147,7 +161,7 @@ import_module_params() {
     params="$("${DAEMON_NAME}" query "$module" "$query" --node "${SOURCE_CHAIN_RPC}" --output json || echo "{}")"
 
     echo "Modifying $module $query..."
-    modify_genesis_jq "$module", "$jq_script" "$params"
+    modify_genesis_jq "$module" "$jq_script" "$params"
 }
 
 import_contracts() {
