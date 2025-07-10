@@ -21,7 +21,7 @@ services:
     # build:
     #   context: ./xion
     command: >
-      sleep 500 && /usr/bin/cosmovisor run start \
+      /usr/bin/cosmovisor run start \
         --api.address tcp://0.0.0.0:1317 \
         --api.enable true \
         --api.enabled-unsafe-cors true \
