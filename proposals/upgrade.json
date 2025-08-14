@@ -1,0 +1,18 @@
+{
+  "messages": [
+    {
+      "@type": "/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade",
+      "authority": "xion10d07y265gmmuvt4z0w9aw880jnsr700jctf8qc",
+      "plan": {
+        "name": "v19",
+        "height": "200",
+        "info": "",
+        "upgraded_client_state": null
+      }
+    }
+  ],
+  "title": "Software Upgrade v19",
+  "summary": "Software Upgrade v19",
+  "deposit": "5000000000uxion",
+  "expedited": true
+}

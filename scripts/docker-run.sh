@@ -4,7 +4,7 @@
 : ${my_dir:="$(realpath $(dirname $0))"}
 : ${base_dir:="$(dirname $my_dir)"}
 
-# Build Docker Imgae
+# Build Docker Image
 docker build $base_dir --tag burnt/xiond:develop
 
 # Prepare volume directory in HOME
