@@ -1,8 +1,24 @@
-docker-run:
-	./scripts/docker-run.sh
+singleton:
+	. .env && ./scripts/docker-run.sh
 
-docker-compose:
-	docker compose up -d
+build:
+	COMMIT=$$(cd ./xion && git rev-parse --short HEAD) docker compose build --pull
+
+build-no-cache:
+	COMMIT=$$(cd ./xion && git rev-parse --short HEAD) docker compose build --pull --no-cache
+
+start:
+	 docker compose up -d
+
+stop:
+	docker compose stop
+
+down:
+	docker compose down
+
+clean:
+	docker compose rm -f -s -v
 
 purge:
-	./scripts/purge.sh
+	docker compose rm -f -s -v
+	docker volume rm -f devnet_shared

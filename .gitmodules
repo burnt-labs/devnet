@@ -1,15 +1,15 @@
 [submodule "xion"]
 	path = xion
 	url = https://github.com/burnt-labs/xion.git
-	branch = main
+	branch = release/v19
 [submodule "xion-dashboard-app"]
 	path = xion-dashboard-app
 	url = https://github.com/burnt-labs/xion-dashboard-app.git
-	branch = main
+	branch = chore/devnet
 [submodule "xion-explorer"]
 	path = xion-explorer
 	url = https://github.com/burnt-labs/xion-explorer.git
-	branch = xio0n/main
+	branch = xion/mainnet
 [submodule "xion-faucet"]
 	path = xion-faucet
 	url = https://github.com/burnt-labs/xion-faucet.git
@@ -17,12 +17,12 @@
 [submodule "xion-developer-portal"]
 	path = xion-developer-portal
 	url = https://github.com/burnt-labs/xion-developer-portal.git
-	branch = main
+	branch = chore/devnet
 [submodule "xion-staking"]
 	path = xion-staking
 	url = https://github.com/burnt-labs/xion-staking.git
-	branch = main
+	branch = chore/devnet
 [submodule "xion-assets"]
 	path = xion-assets
 	url = https://github.com/burnt-labs/xion-assets.git
-	branch = main
+	branch = chore/devnet

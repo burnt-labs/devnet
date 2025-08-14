@@ -1,6 +1,29 @@
 services:
+  haproxy:
+    image: haproxy:3.2-alpine
+    command: >
+      haproxy -f /usr/local/etc/haproxy/haproxy.cfg
+    depends_on:
+      - xion
+    networks:
+      - default
+    ports:
+      - 1317:1317
+      - 3000:3000
+      - 5173:5173
+      - 9090:9090
+      - 26657:26657
+      - 26658:26658
+    volumes:
+      - ./config/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+
   xion:
-    image: ghcr.io/burnt-labs/xion/xion:${XION_VERSION:-latest}
+    image: ghcr.io/burnt-labs/xion/xion:${XIOND_VERSION:-latest}
+    build:
+      context: ./xion
+      args:
+        - VERSION=${XIOND_VERSION}
+        - COMMIT=${COMMIT}
     command: >
       /usr/bin/cosmovisor run start \
         --api.address tcp://0.0.0.0:1317 \
@@ -10,48 +33,55 @@ services:
         --grpc.enable true \
         --grpc.address 0.0.0.0:9090 \
         --grpc-web.enable \
-        --minimum-gas-prices 0.025uxion \
-        --rpc.laddr tcp://0.0.0.0:26657
+        --minimum-gas-prices 0.001uxion \
+        --rpc.laddr tcp://0.0.0.0:26657 
     entrypoint: /home/xiond/init/entrypoint.sh
     deploy:
       replicas: ${NUM_VALIDATORS:-3}
-    environment:
-      CHAIN_ID: ${CHAIN_ID}
-      DAEMON_HOME: ${DAEMON_HOME}
-      DAEMON_NAME: ${DAEMON_NAME}
-      DEFAULT_DENOM: ${DEFAULT_DENOM}
-      DENOM_METADATA_NAME: ${DENOM_METADATA_NAME}
-      GENESIS_AMOUNT: ${GENESIS_AMOUNT}
-      GENTX_AMOUNT: ${GENTX_AMOUNT}
-      MNEMONIC: ${MNEMONIC}
-      MODIFY_GENESIS_JQ: ${MODIFY_GENESIS_JQ}
-      NUM_VALIDATORS: ${NUM_VALIDATORS:-3}
-      SOURCE_CHAIN_ID: ${SOURCE_CHAIN_ID:-""}
-      SOURCE_CHAIN_RPC: ${SOURCE_CHAIN_RPC:-""}
-      SOURCE_CHAIN_CODE_IDS: ${SOURCE_CHAIN_CODE_IDS:-()}
-    networks:
-      - default
+    env_file:
+      - .env
     ports:
       - 1317
+      - 9090
       - 26656
       - 26657
+    healthcheck:
+      test: ["CMD-SHELL", "curl http://localhost:26657/status"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     user: root
+    working_dir: /home/${DAEMON_NAME}
+    networks:
+      - default
     volumes:
       - /home/${DAEMON_NAME}
       - shared:/home/${DAEMON_NAME}/.shared
       - ./scripts/init:/home/${DAEMON_NAME}/init
-    working_dir: /home/${DAEMON_NAME}
 
-  haproxy:
-    image: haproxy:2.9-alpine
+  xion-explorer:
+    build:
+      context: xion-explorer/
+      args:
+        VITE_DEPLOYMENT_ENV: devnet
+    image: ghcr.io/burnt-labs/xion/xion-explorer:latest
     ports:
-      - 1317:1317
-      - 8444:8444
-      - 9090:9090
-      - 26657:26657
-      - 26658:26658
-    volumes:
-      - ./init/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+      - "5173"
+    networks:
+      - default
+
+  xion-faucet:
+    build:
+      context: xion-faucet/
+      args:
+        DOTENV_FILE: .env.example
+    image: ghcr.io/burnt-labs/xion/xion-faucet:latest
+    env_file:
+      - ./xion-faucet/.env.example
+    ports:
+      - "3000"
+    networks:
+      - default
 
 networks:
   default:
