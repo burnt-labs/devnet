@@ -1,7 +1,7 @@
 [submodule "xion"]
 	path = xion
 	url = https://github.com/burnt-labs/xion.git
-	branch = release/v19
+	branch = release/v20
 [submodule "xion-dashboard-app"]
 	path = xion-dashboard-app
 	url = https://github.com/burnt-labs/xion-dashboard-app.git
