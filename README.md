@@ -7,6 +7,22 @@ Xion Devnet is a multi-validator sandbox environment orchestrated with Docker Co
 - [Docker](https://www.docker.com/) (version 20.10 or higher)
 - [Docker Compose](https://github.com/docker/compose) (version 2.0 or higher)
 - [Make](https://www.gnu.org/software/make/) (for using Makefile commands)
+- [GitHub CLI](https://cli.github.com/) (`gh`) - required for building the xion image
+
+### GitHub Container Registry Authentication
+
+The xion node build process pulls base images from GitHub Container Registry (ghcr.io):
+- `ghcr.io/goreleaser/goreleaser-cross` - for building the Go binary
+- `ghcr.io/linuxcontainers/alpine` - for the runtime image
+
+**Authenticate with Docker:**
+
+```sh
+echo "$(gh auth token)" | docker login ghcr.io --username $(gh api user --jq .login) --password-stdin
+```
+
+**Note**: The xion-explorer and xion-faucet images build from local source and only require public Docker Hub base images (no ghcr.io authentication needed)
+
 
 ## Quick Start
 
@@ -97,12 +113,38 @@ This devnet environment includes several Xion ecosystem components as git submod
 - **[xion-faucet](https://github.com/burnt-labs/xion-faucet)** - Token distribution service for testnet XION tokens
 - **[xion-staking](https://github.com/burnt-labs/xion-staking)** - Staking interface for validators and delegators
 - **[xion-assets](https://github.com/burnt-labs/xion-assets)** - Static assets and branding resources
+- **[xion-dashboard-app](https://github.com/burnt-labs/xion-dashboard-app)** - Dashboard application *(not yet available)*
+- **[xion-developer-portal](https://github.com/burnt-labs/xion-developer-portal)** - Treasury contract management interface *(not yet available)*
 
 To update all submodules to their latest commits:
 
 ```sh
 git submodule update --remote --recursive
 ```
+
+## Xion CLI
+
+Assuming you have `xiond` installed locally, 
+
+```shell
+ xiond status --node http://localhost:26657/
+```
+
+or for convenience, add the following to your shell file: 
+
+```shell
+xd() {
+    xiond "$@" --node http://localhost:26657/ --log_format json
+}
+```
+
+And use it like so:
+```shell
+xd status
+```
+
+
+
 
 ## Troubleshooting
 

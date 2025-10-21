@@ -9,7 +9,7 @@
 [submodule "xion-explorer"]
 	path = xion-explorer
 	url = https://github.com/burnt-labs/xion-explorer.git
-	branch = xion/mainnet
+	branch = xion/main
 [submodule "xion-faucet"]
 	path = xion-faucet
 	url = https://github.com/burnt-labs/xion-faucet.git
