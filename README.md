@@ -34,9 +34,10 @@ make full          # everything
 | 3001 | AA API | 8081 | ZK Email Prover |
 | 3002 | Indexer GraphQL | 8082 | ZK Email Worker |
 | 3003 | Developer Portal | 8788 | Staking |
-| 4173 | Dashboard | 26757 | Osmosis RPC |
-| 5173 | Explorer | 26857 | Noble RPC |
-| 8444 | HAProxy Stats | 9190/9290 | Osmosis/Noble gRPC |
+| 3004 | Assets | 26757 | Osmosis RPC |
+| 4173 | Dashboard | 26857 | Noble RPC |
+| 5173 | Explorer | 9190/9290 | Osmosis/Noble gRPC |
+| 8444 | HAProxy Stats | 26656 | Xion P2P |
 
 ## Commands
 

@@ -30,11 +30,12 @@ services:
       - "1317:1317"       # Xion REST/LCD
       - "9090:9090"       # Xion gRPC
       - "26657:26657"     # Xion RPC
-      - "26658:26658"     # Xion P2P
+      - "26656:26656"     # Xion P2P
       - "3000:3000"       # Faucet
       - "3001:3001"       # AA API
       - "3002:3002"       # Indexer GraphQL
       - "3003:3003"       # Developer Portal
+      - "3004:3004"       # Assets
       - "4173:4173"       # Dashboard
       - "5173:5173"       # Explorer
       - "8001:8001"       # Indexer Proxy
