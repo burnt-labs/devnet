@@ -102,6 +102,26 @@ services:
     networks:
       - devnet
 
+  deploy-contracts:
+    image: ghcr.io/burnt-labs/xion/xion:${XIOND_VERSION:-latest}
+    profiles: ["apps", "oauth", "zk", "full"]
+    entrypoint: /home/${DAEMON_NAME}/init/deploy-contracts.sh
+    env_file:
+      - .env
+    environment:
+      - XION_RPC=http://xion:26657
+      - OUTPUT_FILE=/home/${DAEMON_NAME}/.shared/deploy-contracts.env
+    depends_on:
+      xion:
+        condition: service_healthy
+    working_dir: /home/${DAEMON_NAME}
+    volumes:
+      - shared:/home/${DAEMON_NAME}/.shared
+      - ./scripts/init:/home/${DAEMON_NAME}/init
+    networks:
+      - devnet
+    restart: "no"
+
   xion-explorer:
     profiles: ["core", "apps", "oauth", "zk", "ibc", "full"]
     build:
