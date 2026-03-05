@@ -38,10 +38,6 @@
 	path = account-abstraction-api
 	url = https://github.com/burnt-labs/account-abstraction-api.git
 	branch = chore/devnet
-[submodule "oauth3"]
-	path = oauth3
-	url = https://github.com/burnt-labs/oauth3.git
-	branch = chore/devnet
 [submodule "oauth2-api-service"]
 	path = oauth2-api-service
 	url = https://github.com/burnt-labs/oauth2-api-service.git

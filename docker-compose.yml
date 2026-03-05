@@ -4,7 +4,7 @@
 # Profiles:
 #   core  — xion (3 validators) + haproxy + explorer + faucet
 #   apps  — core + AA API + dashboard + staking + dev-portal + indexer + assets
-#   oauth — apps + oauth3 + oauth2-api-service + oauth2-clients-dashboard
+#   oauth — apps + oauth2-api-service + oauth2-clients-dashboard
 #   zk    — apps + zk-email-backend + zk-email-prover + zk-email-worker
 #   ibc   — core + osmosis + noble + hermes relayer
 #   full  — everything
@@ -402,32 +402,6 @@ services:
   # OAUTH PROFILE
   # ═══════════════════════════════════════════════════════════════════════════
 
-  oauth3:
-    profiles: ["oauth", "full"]
-    build:
-      context: oauth3/
-      dockerfile: Dockerfile
-    image: ghcr.io/burnt-labs/xion/oauth3:latest
-    environment:
-      - DATABASE_URL=sqlite:///app/data/oauth3.db
-      - RUST_LOG=info,oauth3=debug
-      - XION_RPC_URL=http://haproxy:26657
-      - XION_API_URL=http://haproxy:1317
-      - CHAIN_ID=xion-devnet-1
-    ports:
-      - "8080"
-    volumes:
-      - oauth3-data:/app/data
-    depends_on:
-      xion:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-    networks:
-      - devnet
 
   oauth2-api-service:
     profiles: ["oauth", "full"]
@@ -436,13 +410,13 @@ services:
       dockerfile: Dockerfile
     image: ghcr.io/burnt-labs/xion/oauth2-api-service:latest
     environment:
-      - OAUTH3_URL=http://oauth3:8080
       - XION_RPC_URL=http://haproxy:26657
       - CHAIN_ID=xion-devnet-1
     ports:
       - "8002"
     depends_on:
-      - oauth3
+      xion:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:8002/ || exit 1"]
       interval: 15s
@@ -686,7 +660,6 @@ networks:
 volumes:
   shared:
   postgres-data:
-  oauth3-data:
   osmosis-data:
   noble-data:
   hermes-data:
