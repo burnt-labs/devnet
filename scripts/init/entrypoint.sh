@@ -21,6 +21,7 @@ IMPORT_MODULES=(
   "staking" 
   "tokenfactory"
   "wasm"
+  "zk"
 )
 
 # Load environment variables
