@@ -232,7 +232,13 @@ initialize_genesis() {
 
     if [[ -n "${MODIFY_GENESIS_JQ}" ]]; then
         echo "Modifying genesis.json..."
-        modify_genesis_jq "" "${MODIFY_GENESIS_JQ}" "{}"
+        jq --arg module "" --argjson params '{}' \
+            --arg stytch_aud "${STYTCH_AUD:-}" \
+            --arg stytch_jwk "${STYTCH_JWK:-}" \
+            --arg abstraxion_addr "${ABSTRAXION_ADDRESS:-}" \
+            "${MODIFY_GENESIS_JQ}" "${DAEMON_HOME}/config/genesis.json" > "${TMP_DIR}/genesis.json"
+        diff -u "${DAEMON_HOME}/config/genesis.json" "${TMP_DIR}/genesis.json" || true
+        mv "${TMP_DIR}/genesis.json" "${DAEMON_HOME}/config/genesis.json"
     fi
 
     echo "Collecting gentxs..."
