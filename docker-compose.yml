@@ -10,6 +10,10 @@ services:
     ports:
       - 1317:1317
       - 3000:3000
+      - 3001:3001
+      - 3002:3002
+      - 3003:3003
+      - 3004:3004
       - 5173:5173
       - 9090:9090
       - 26657:26657
@@ -83,8 +87,135 @@ services:
     networks:
       - default
 
+  # === Core Apps (Phase 2) ===
+
+  account-abstraction-api:
+    build:
+      context: account-abstraction-api/
+    image: ghcr.io/burnt-labs/xion/account-abstraction-api:latest
+    environment:
+      - XION_RPC_URL=http://haproxy:26657
+      - XION_API_URL=http://haproxy:1317
+      - XION_GRPC_URL=haproxy:9090
+      - CHAIN_ID=xion-devnet-1
+    ports:
+      - "3000"
+    depends_on:
+      xion:
+        condition: service_healthy
+    networks:
+      - default
+
+  xion-indexer-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - indexer-db:/var/lib/postgresql/data
+    networks:
+      - default
+
+  xion-indexer-node:
+    image: subquerynetwork/subql-node-cosmos:v3.11.2
+    depends_on:
+      xion-indexer-db:
+        condition: service_healthy
+      xion:
+        condition: service_healthy
+    restart: always
+    environment:
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_DATABASE: postgres
+      DB_HOST: xion-indexer-db
+      DB_PORT: 5432
+    volumes:
+      - ./xion-indexer:/app
+    command:
+      - ${SUB_COMMAND:-forceClean}
+      - -f=/app
+      - --db-schema=app
+      - --unsafe
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://xion-indexer-node:3000/ready"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+    networks:
+      - default
+
+  xion-indexer-graphql:
+    image: subquerynetwork/subql-query:latest
+    depends_on:
+      xion-indexer-db:
+        condition: service_healthy
+      xion-indexer-node:
+        condition: service_healthy
+    restart: always
+    environment:
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_DATABASE: postgres
+      DB_HOST: xion-indexer-db
+      DB_PORT: 5432
+    command:
+      - --name=app
+      - --playground
+      - --indexer=http://xion-indexer-node:3000
+    ports:
+      - "3002"
+    networks:
+      - default
+
+  xion-dashboard-app:
+    build:
+      context: xion-dashboard-app/
+      args:
+        NETWORK_NAME: devnet
+    image: ghcr.io/burnt-labs/xion/xion-dashboard-app:latest
+    environment:
+      - VITE_NETWORK=devnet
+      - VITE_CHAIN_ID=xion-devnet-1
+      - VITE_XION_API_URL=http://haproxy:1317
+      - VITE_XION_RPC_URL=http://haproxy:26657
+      - VITE_ABSTRAXION_API_URL=http://account-abstraction-api:3001
+      - VITE_STYTCH_PUBLIC_TOKEN=${STYTCH_PUBLIC_TOKEN:-public-token-test-placeholder}
+      - VITE_NUMIA_TOKEN=${NUMIA_TOKEN:-placeholder}
+      - VITE_DEFAULT_INDEXER_URL=http://xion-indexer-graphql:3000
+      - VITE_FEE_GRANTER_ADDRESS=${FEE_GRANTER_ADDRESS:-}
+      - VITE_DEFAULT_ACCOUNT_CONTRACT_CODE_ID=1
+    ports:
+      - "3003"
+    depends_on:
+      - account-abstraction-api
+    networks:
+      - default
+
+  xion-staking:
+    build:
+      context: xion-staking/
+    image: ghcr.io/burnt-labs/xion/xion-staking:latest
+    environment:
+      - NEXT_PUBLIC_CHAIN_ID=xion-devnet-1
+    ports:
+      - "3004"
+    depends_on:
+      xion:
+        condition: service_healthy
+    networks:
+      - default
+
 networks:
   default:
 
 volumes:
   shared:
+  indexer-db:

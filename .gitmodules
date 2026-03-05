@@ -26,3 +26,11 @@
 	path = xion-assets
 	url = https://github.com/burnt-labs/xion-assets.git
 	branch = chore/devnet
+[submodule "xion-indexer"]
+	path = xion-indexer
+	url = https://github.com/burnt-labs/xion-indexer.git
+	branch = chore/devnet
+[submodule "account-abstraction-api"]
+	path = account-abstraction-api
+	url = https://github.com/burnt-labs/account-abstraction-api.git
+	branch = chore/devnet
