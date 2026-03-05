@@ -50,3 +50,7 @@
 	path = zk-email-worker
 	url = https://github.com/burnt-labs/zk-email-worker.git
 	branch = chore/devnet
+[submodule "xion-indexer-proxy"]
+	path = xion-indexer-proxy
+	url = https://github.com/burnt-labs/xion-indexer-proxy.git
+	branch = chore/devnet
