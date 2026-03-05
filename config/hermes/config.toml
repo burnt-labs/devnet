@@ -1,0 +1,99 @@
+# Hermes IBC Relayer Configuration
+# Three-chain relay: Xion ↔ Osmosis, Xion ↔ Noble
+
+[global]
+log_level = 'info'
+
+[mode]
+[mode.clients]
+enabled = true
+refresh = true
+misbehaviour = false
+
+[mode.connections]
+enabled = false
+
+[mode.channels]
+enabled = false
+
+[mode.packets]
+enabled = true
+clear_interval = 100
+clear_on_start = true
+tx_confirmation = false
+
+[rest]
+enabled = false
+host = '127.0.0.1'
+port = 3000
+
+[telemetry]
+enabled = false
+host = '127.0.0.1'
+port = 3001
+
+# ─── Xion ───────────────────────────────────
+[[chains]]
+id = 'xion-devnet-1'
+type = 'CosmosSdk'
+rpc_addr = 'http://xion:26657'
+grpc_addr = 'http://xion:9090'
+event_source = { mode = 'push', url = 'ws://xion:26657/websocket', batch_delay = '500ms' }
+account_prefix = 'xion'
+key_name = 'relayer'
+key_store_type = 'Test'
+store_prefix = 'ibc'
+default_gas = 400000
+max_gas = 3000000
+gas_price = { price = 0.0, denom = 'uxion' }
+gas_multiplier = 1.3
+max_msg_num = 30
+max_tx_size = 180000
+clock_drift = '15s'
+trusting_period = '14days'
+trust_threshold = { numerator = '1', denominator = '3' }
+address_type = { derivation = 'cosmos' }
+
+# ─── Osmosis ────────────────────────────────
+[[chains]]
+id = 'localosmo-1'
+type = 'CosmosSdk'
+rpc_addr = 'http://osmosis:26657'
+grpc_addr = 'http://osmosis:9090'
+event_source = { mode = 'push', url = 'ws://osmosis:26657/websocket', batch_delay = '500ms' }
+account_prefix = 'osmo'
+key_name = 'relayer'
+key_store_type = 'Test'
+store_prefix = 'ibc'
+default_gas = 400000
+max_gas = 3000000
+gas_price = { price = 0.0025, denom = 'uosmo' }
+gas_multiplier = 1.3
+max_msg_num = 30
+max_tx_size = 180000
+clock_drift = '15s'
+trusting_period = '14days'
+trust_threshold = { numerator = '1', denominator = '3' }
+address_type = { derivation = 'cosmos' }
+
+# ─── Noble ──────────────────────────────────
+[[chains]]
+id = 'noble-devnet-1'
+type = 'CosmosSdk'
+rpc_addr = 'http://noble:26657'
+grpc_addr = 'http://noble:9090'
+event_source = { mode = 'push', url = 'ws://noble:26657/websocket', batch_delay = '500ms' }
+account_prefix = 'noble'
+key_name = 'relayer'
+key_store_type = 'Test'
+store_prefix = 'ibc'
+default_gas = 400000
+max_gas = 3000000
+gas_price = { price = 0.0, denom = 'ustake' }
+gas_multiplier = 1.3
+max_msg_num = 30
+max_tx_size = 180000
+clock_drift = '15s'
+trusting_period = '14days'
+trust_threshold = { numerator = '1', denominator = '3' }
+address_type = { derivation = 'cosmos' }
