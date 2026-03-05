@@ -9,7 +9,7 @@
 [submodule "xion-explorer"]
 	path = xion-explorer
 	url = https://github.com/burnt-labs/xion-explorer.git
-	branch = xion/mainnet
+	branch = chore/devnet
 [submodule "xion-faucet"]
 	path = xion-faucet
 	url = https://github.com/burnt-labs/xion-faucet.git
@@ -30,7 +30,35 @@
 	path = xion-indexer
 	url = https://github.com/burnt-labs/xion-indexer.git
 	branch = chore/devnet
+[submodule "xion-indexer-proxy"]
+	path = xion-indexer-proxy
+	url = https://github.com/burnt-labs/xion-indexer-proxy.git
+	branch = chore/devnet
 [submodule "account-abstraction-api"]
 	path = account-abstraction-api
 	url = https://github.com/burnt-labs/account-abstraction-api.git
+	branch = chore/devnet
+[submodule "oauth3"]
+	path = oauth3
+	url = https://github.com/burnt-labs/oauth3.git
+	branch = chore/devnet
+[submodule "oauth2-api-service"]
+	path = oauth2-api-service
+	url = https://github.com/burnt-labs/oauth2-api-service.git
+	branch = chore/devnet
+[submodule "oauth2-clients-dashboard"]
+	path = oauth2-clients-dashboard
+	url = https://github.com/burnt-labs/oauth2-clients-dashboard.git
+	branch = chore/devnet
+[submodule "zk-email-backend"]
+	path = zk-email-backend
+	url = https://github.com/burnt-labs/zk-email-backend.git
+	branch = chore/devnet
+[submodule "zk-email-prover"]
+	path = zk-email-prover
+	url = https://github.com/burnt-labs/zk-email-prover.git
+	branch = chore/devnet
+[submodule "zk-email-worker"]
+	path = zk-email-worker
+	url = https://github.com/burnt-labs/zk-email-worker.git
 	branch = chore/devnet
