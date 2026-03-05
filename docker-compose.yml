@@ -207,7 +207,7 @@ services:
       - devnet
 
   xion-indexer-node:
-    image: subquerynetwork/subql-node-cosmos:v3.11.2
+    image: subquerynetwork/subql-node-cosmos:v4.0.1
     profiles: ["apps", "oauth", "zk", "full"]
     depends_on:
       postgresql:
