@@ -172,6 +172,8 @@ services:
       - XION_API_URL=http://haproxy:1317
       - XION_GRPC_URL=haproxy:9090
       - CHAIN_ID=xion-devnet-1
+      - STYTCH_PROJECT_ID=${STYTCH_PROJECT_ID:-project-test-1aa439cd-842b-4d3b-b2a6-37899cf83ca9}
+      - STYTCH_SECRET=${STYTCH_SECRET:-PLACEHOLDER_NEED_SECRET}
     ports:
       - "3001"
     depends_on:
@@ -303,7 +305,7 @@ services:
       - VITE_XION_API_URL=http://haproxy:1317
       - VITE_XION_RPC_URL=http://haproxy:26657
       - VITE_ABSTRAXION_API_URL=http://account-abstraction-api:3001
-      - VITE_STYTCH_PUBLIC_TOKEN=${STYTCH_PUBLIC_TOKEN:-public-token-test-placeholder}
+      - VITE_STYTCH_PUBLIC_TOKEN=${STYTCH_PUBLIC_TOKEN:-public-token-test-823bab5f-5fe6-4a3f-b49a-ca59763be42a}
       - VITE_NUMIA_TOKEN=${NUMIA_TOKEN:-placeholder}
       - VITE_DEFAULT_INDEXER_URL=http://xion-indexer-graphql:3000
       - VITE_FEE_GRANTER_ADDRESS=${FEE_GRANTER_ADDRESS:-}
