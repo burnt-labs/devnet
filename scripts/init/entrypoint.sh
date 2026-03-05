@@ -12,6 +12,7 @@ IMPORT_MODULES=(
   "bank"
   "bank_denoms_metadata"
   "consensus" 
+  "dkim"
   "distribution"
   "globalfee"
   "gov"
