@@ -280,12 +280,12 @@ services:
       - VITE_RPC_URL=http://haproxy:26657
       - VITE_API_URL=http://haproxy:1317
     ports:
-      - "3002"
+      - "3000"
     depends_on:
       xion:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/ || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -303,12 +303,12 @@ services:
     environment:
       - VITE_CHAIN_ID=xion-devnet-1
     ports:
-      - "3003"
+      - "3000"
     depends_on:
       xion:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3003/ || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
