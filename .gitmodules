@@ -25,7 +25,7 @@
 [submodule "xion-assets"]
 	path = xion-assets
 	url = https://github.com/burnt-labs/xion-assets.git
-	branch = chore/devnet
+	branch = main
 [submodule "account-abstraction-api"]
 	path = account-abstraction-api
 	url = https://github.com/burnt-labs/account-abstraction-api.git
