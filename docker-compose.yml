@@ -20,6 +20,16 @@ services:
   # CORE PROFILE
   # ═══════════════════════════════════════════════════════════════════════════
 
+  init-scripts:
+    image: busybox:1.37
+    profiles: ["core", "apps", "oauth", "zk", "ibc", "full"]
+    command: >
+      sh -c "cp -R /source/. /target/ && chmod +x /target/*.sh"
+    volumes:
+      - ./scripts/init:/source:ro
+      - init-scripts:/target
+    restart: "no"
+
   haproxy:
     image: haproxy:3.2-alpine
     profiles: ["core", "apps", "oauth", "zk", "ibc", "full"]
@@ -63,6 +73,9 @@ services:
   xion:
     image: ghcr.io/burnt-labs/xion/xion:${XIOND_VERSION:-latest}
     profiles: ["core", "apps", "oauth", "zk", "ibc", "full"]
+    depends_on:
+      init-scripts:
+        condition: service_completed_successfully
     build:
       context: ./xion
       args:
@@ -99,7 +112,7 @@ services:
     volumes:
       - /home/${DAEMON_NAME}
       - shared:/home/${DAEMON_NAME}/.shared
-      - ./scripts/init:/home/${DAEMON_NAME}/init
+      - init-scripts:/home/${DAEMON_NAME}/init:ro
     networks:
       - devnet
 
@@ -113,12 +126,14 @@ services:
       - XION_RPC=http://xion:26657
       - OUTPUT_FILE=/home/${DAEMON_NAME}/.shared/deploy-contracts.env
     depends_on:
+      init-scripts:
+        condition: service_completed_successfully
       xion:
         condition: service_healthy
     working_dir: /home/${DAEMON_NAME}
     volumes:
       - shared:/home/${DAEMON_NAME}/.shared
-      - ./scripts/init:/home/${DAEMON_NAME}/init
+      - init-scripts:/home/${DAEMON_NAME}/init:ro
     networks:
       - devnet
     restart: "no"
@@ -600,6 +615,7 @@ networks:
 
 volumes:
   shared:
+  init-scripts:
   postgres-data:
   osmosis-data:
   noble-data:
