@@ -1,65 +1,145 @@
+###############################################################################
+# Xion Devnet — Full Stack Docker Compose
+#
+# Profiles:
+#   core  — xion (3 validators) + haproxy + explorer + faucet
+#   apps  — core + AA API + dashboard + staking + dev-portal + indexer + assets
+#   oauth — apps + oauth2-api-service + oauth2-clients-dashboard
+#   zk    — apps + zk-email-backend + zk-email-prover + zk-email-worker
+#   ibc   — core + osmosis + noble + hermes relayer
+#   full  — everything
+#
+# Usage:
+#   docker compose --profile core up -d
+#   docker compose --profile full up -d
+###############################################################################
+
 services:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # CORE PROFILE
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  init-scripts:
+    image: busybox:1.37
+    profiles: ["core", "apps", "oauth", "zk", "ibc", "full"]
+    command: >
+      sh -c "cp -R /source/. /target/ && chmod +x /target/*.sh"
+    volumes:
+      - ./scripts/init:/source:ro
+      - init-scripts:/target
+    restart: "no"
+
   haproxy:
     image: haproxy:3.2-alpine
-    command: >
-      haproxy -f /usr/local/etc/haproxy/haproxy.cfg
+    profiles: ["core", "apps", "oauth", "zk", "ibc", "full"]
+    command: haproxy -f /usr/local/etc/haproxy/haproxy.cfg
     depends_on:
       - xion
-    networks:
-      - default
     ports:
-      - 1317:1317
-      - 3000:3000
-      - 5173:5173
-      - 9090:9090
-      - 26657:26657
-      - 26658:26658
+      - "1317:1317"       # Xion REST/LCD
+      - "9090:9090"       # Xion gRPC
+      - "26657:26657"     # Xion RPC
+      - "26656:26656"     # Xion P2P
+      - "3000:3000"       # Faucet
+      - "3001:3001"       # AA API
+      - "3002:3002"       # Indexer GraphQL
+      - "3003:3003"       # Developer Portal
+      - "3004:3004"       # Assets
+      - "4173:4173"       # Dashboard
+      - "5173:5173"       # Explorer
+      - "8001:8001"       # Indexer Proxy
+      - "8002:8002"       # OAuth2 API Service
+      - "8003:8003"       # OAuth2 Clients Dashboard
+      - "8080:8080"       # OAuth3
+      - "8081:8081"       # ZK Email Prover
+      - "8082:8082"       # ZK Email Worker
+      - "8788:8788"       # Staking
+      - "8444:8444"       # HAProxy stats
+      - "26757:26757"     # Osmosis RPC
+      - "9190:9190"       # Osmosis gRPC
+      - "26857:26857"     # Noble RPC
+      - "9290:9290"       # Noble gRPC
     volumes:
       - ./config/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    healthcheck:
+      test: ["CMD-SHELL", "haproxy -c -f /usr/local/etc/haproxy/haproxy.cfg"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - devnet
 
   xion:
     image: ghcr.io/burnt-labs/xion/xion:${XIOND_VERSION:-latest}
+    profiles: ["core", "apps", "oauth", "zk", "ibc", "full"]
+    depends_on:
+      init-scripts:
+        condition: service_completed_successfully
     build:
       context: ./xion
       args:
         - VERSION=${XIOND_VERSION}
         - COMMIT=${COMMIT}
-    command: >
-      /usr/bin/cosmovisor run start \
-        --api.address tcp://0.0.0.0:1317 \
-        --api.enable true \
-        --api.enabled-unsafe-cors true \
-        --api.swagger true \
-        --grpc.enable true \
-        --grpc.address 0.0.0.0:9090 \
-        --grpc-web.enable \
-        --minimum-gas-prices 0.001uxion \
-        --rpc.laddr tcp://0.0.0.0:26657 
     entrypoint: /home/xiond/init/entrypoint.sh
+    command: >
+      /usr/bin/cosmovisor run start
+        --api.address tcp://0.0.0.0:1317
+        --api.enable true
+        --api.enabled-unsafe-cors true
+        --api.swagger true
+        --grpc.enable true
+        --grpc.address 0.0.0.0:9090
+        --grpc-web.enable
+        --minimum-gas-prices 0.001uxion
+        --rpc.laddr tcp://0.0.0.0:26657
     deploy:
       replicas: ${NUM_VALIDATORS:-3}
     env_file:
       - .env
     ports:
-      - 1317
-      - 9090
-      - 26656
-      - 26657
+      - "1317"
+      - "9090"
+      - "26656"
+      - "26657"
     healthcheck:
-      test: ["CMD-SHELL", "curl http://localhost:26657/status"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:26657/status"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
     user: root
     working_dir: /home/${DAEMON_NAME}
-    networks:
-      - default
     volumes:
       - /home/${DAEMON_NAME}
       - shared:/home/${DAEMON_NAME}/.shared
-      - ./scripts/init:/home/${DAEMON_NAME}/init
+      - init-scripts:/home/${DAEMON_NAME}/init:ro
+    networks:
+      - devnet
+
+  deploy-contracts:
+    image: ghcr.io/burnt-labs/xion/xion:${XIOND_VERSION:-latest}
+    profiles: ["apps", "oauth", "zk", "full"]
+    entrypoint: /home/${DAEMON_NAME}/init/deploy-contracts.sh
+    env_file:
+      - .env
+    environment:
+      - XION_RPC=http://xion:26657
+      - OUTPUT_FILE=/home/${DAEMON_NAME}/.shared/deploy-contracts.env
+    depends_on:
+      init-scripts:
+        condition: service_completed_successfully
+      xion:
+        condition: service_healthy
+    working_dir: /home/${DAEMON_NAME}
+    volumes:
+      - shared:/home/${DAEMON_NAME}/.shared
+      - init-scripts:/home/${DAEMON_NAME}/init:ro
+    networks:
+      - devnet
+    restart: "no"
 
   xion-explorer:
+    profiles: ["core", "apps", "oauth", "zk", "ibc", "full"]
     build:
       context: xion-explorer/
       args:
@@ -67,10 +147,16 @@ services:
     image: ghcr.io/burnt-labs/xion/xion-explorer:latest
     ports:
       - "5173"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5173/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     networks:
-      - default
+      - devnet
 
   xion-faucet:
+    profiles: ["core", "apps", "oauth", "zk", "ibc", "full"]
     build:
       context: xion-faucet/
       args:
@@ -80,11 +166,457 @@ services:
       - ./xion-faucet/.env.example
     ports:
       - "3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     networks:
-      - default
+      - devnet
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # APPS PROFILE
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  account-abstraction-api:
+    profiles: ["apps", "oauth", "zk", "full"]
+    build:
+      context: account-abstraction-api/
+    image: ghcr.io/burnt-labs/xion/account-abstraction-api:latest
+    environment:
+      - XION_RPC_URL=http://haproxy:26657
+      - XION_API_URL=http://haproxy:1317
+      - XION_GRPC_URL=haproxy:9090
+      - CHAIN_ID=xion-devnet-1
+      - STYTCH_PROJECT_ID=${STYTCH_PROJECT_ID:-project-test-1aa439cd-842b-4d3b-b2a6-37899cf83ca9}
+      - STYTCH_SECRET=${STYTCH_SECRET:-PLACEHOLDER_NEED_SECRET}
+    ports:
+      - "3001"
+    depends_on:
+      xion:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devnet
+
+  # --- Indexer (SubQuery) ---
+
+  postgresql:
+    image: postgres:16-alpine
+    profiles: ["apps", "oauth", "zk", "full"]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+    ports:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - devnet
+
+  # --- Dashboard (Primary App) ---
+
+  xion-dashboard-app:
+    profiles: ["apps", "oauth", "zk", "full"]
+    build:
+      context: xion-dashboard-app/
+      args:
+        NETWORK_NAME: devnet
+    image: ghcr.io/burnt-labs/xion/xion-dashboard-app:latest
+    environment:
+      - VITE_NETWORK=devnet
+      - VITE_CHAIN_ID=xion-devnet-1
+      - VITE_XION_API_URL=http://haproxy:1317
+      - VITE_XION_RPC_URL=http://haproxy:26657
+      - VITE_ABSTRAXION_API_URL=http://account-abstraction-api:3001
+      - VITE_STYTCH_PUBLIC_TOKEN=${STYTCH_PUBLIC_TOKEN:-public-token-test-823bab5f-5fe6-4a3f-b49a-ca59763be42a}
+      - VITE_NUMIA_TOKEN=${NUMIA_TOKEN:-placeholder}
+      - VITE_FEE_GRANTER_ADDRESS=${FEE_GRANTER_ADDRESS:-}
+      - VITE_DEFAULT_ACCOUNT_CONTRACT_CODE_ID=1
+      - VITE_ZKEMAIL_FLAG=${ZKEMAIL_FLAG:-false}
+      - VITE_ZKEMAIL_BACKEND_URL=http://zk-email-backend:4500
+    ports:
+      - "4173"
+    depends_on:
+      - account-abstraction-api
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4173/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devnet
+
+  # --- Staking ---
+
+  xion-staking:
+    profiles: ["apps", "oauth", "zk", "full"]
+    build:
+      context: xion-staking/
+      dockerfile: Dockerfile
+    image: ghcr.io/burnt-labs/xion/xion-staking:latest
+    environment:
+      - NEXT_PUBLIC_CHAIN_ID=xion-devnet-1
+      - NEXT_PUBLIC_RPC_URL=http://haproxy:26657
+      - NEXT_PUBLIC_API_URL=http://haproxy:1317
+    ports:
+      - "8788"
+    depends_on:
+      xion:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8788/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devnet
+
+  # --- Developer Portal ---
+
+  xion-developer-portal:
+    profiles: ["apps", "oauth", "zk", "full"]
+    build:
+      context: xion-developer-portal/
+      dockerfile: Dockerfile
+    image: ghcr.io/burnt-labs/xion/xion-developer-portal:latest
+    environment:
+      - VITE_CHAIN_ID=xion-devnet-1
+      - VITE_RPC_URL=http://haproxy:26657
+      - VITE_API_URL=http://haproxy:1317
+    ports:
+      - "3000"
+    depends_on:
+      xion:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devnet
+
+  # --- Assets ---
+
+  xion-assets:
+    profiles: ["apps", "oauth", "zk", "full"]
+    build:
+      context: xion-assets/
+      dockerfile: Dockerfile
+    image: ghcr.io/burnt-labs/xion/xion-assets:latest
+    environment:
+      - VITE_CHAIN_ID=xion-devnet-1
+    ports:
+      - "3000"
+    depends_on:
+      xion:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devnet
+
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  xion-indexer-proxy:
+    profiles: ["apps", "oauth", "zk", "full"]
+    build:
+      context: xion-indexer-proxy/
+      dockerfile: Dockerfile
+    image: ghcr.io/burnt-labs/xion/xion-indexer-proxy:latest
+    environment:
+      - XION_RPC_URL=http://haproxy:26657
+      - XION_API_URL=http://haproxy:1317
+      - CHAIN_ID=xion-devnet-1
+    ports:
+      - "8001:8000"
+    depends_on:
+      xion:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devnet
+
+  # OAUTH PROFILE
+  # ═══════════════════════════════════════════════════════════════════════════
+
+
+  oauth2-api-service:
+    profiles: ["oauth", "full"]
+    build:
+      context: oauth2-api-service/
+      dockerfile: Dockerfile
+    image: ghcr.io/burnt-labs/xion/oauth2-api-service:latest
+    environment:
+      - XION_RPC_URL=http://haproxy:26657
+      - CHAIN_ID=xion-devnet-1
+    ports:
+      - "8002"
+    depends_on:
+      xion:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8002/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devnet
+
+  oauth2-clients-dashboard:
+    profiles: ["oauth", "full"]
+    build:
+      context: oauth2-clients-dashboard/
+      dockerfile: Dockerfile
+    image: ghcr.io/burnt-labs/xion/oauth2-clients-dashboard:latest
+    environment:
+      - VITE_OAUTH2_API_URL=http://oauth2-api-service:8002
+      - VITE_CHAIN_ID=xion-devnet-1
+    ports:
+      - "8003"
+    depends_on:
+      - oauth2-api-service
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8003/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devnet
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # ZK PROFILE
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  zk-email-backend:
+    profiles: ["zk", "full"]
+    build:
+      context: zk-email-backend/
+      dockerfile: Dockerfile
+    image: ghcr.io/burnt-labs/xion/zk-email-backend:latest
+    environment:
+      - XION_RPC_URL=http://haproxy:26657
+      - XION_API_URL=http://haproxy:1317
+      - CHAIN_ID=xion-devnet-1
+    ports:
+      - "4500"
+    volumes:
+      - ./zk-email-backend/config.json:/usr/src/app/config.json:ro
+    depends_on:
+      xion:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4500/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devnet
+
+  zk-email-prover:
+    profiles: ["zk", "full"]
+    build:
+      context: zk-email-prover/
+      dockerfile: Dockerfile.rapidsnark
+    image: ghcr.io/burnt-labs/xion/zk-email-prover:latest
+    environment:
+      - BACKEND_URL=http://zk-email-backend:4500
+    ports:
+      - "8081"
+    depends_on:
+      - zk-email-backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - devnet
+
+  zk-email-worker:
+    profiles: ["zk", "full"]
+    build:
+      context: zk-email-worker/
+      dockerfile: Dockerfile
+    image: ghcr.io/burnt-labs/xion/zk-email-worker:latest
+    environment:
+      - PROVER_URL=http://zk-email-prover:8081
+      - BACKEND_URL=http://zk-email-backend:4500
+      - XION_RPC_URL=http://haproxy:26657
+      - CHAIN_ID=xion-devnet-1
+    ports:
+      - "8082"
+    depends_on:
+      - zk-email-prover
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8082/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    networks:
+      - devnet
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # IBC PROFILE
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  osmosis:
+    image: ghcr.io/strangelove-ventures/heighliner/osmosis:v28.0.0
+    profiles: ["ibc", "full"]
+    user: "1025:1025"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ ! -f /home/heighliner/.osmosisd/config/genesis.json ]; then
+          osmosisd init validator --chain-id localosmo-1 --home /home/heighliner/.osmosisd
+          sed -i 's/timeout_commit = "5s"/timeout_commit = "1s"/' /home/heighliner/.osmosisd/config/config.toml
+          sed -i 's/timeout_propose = "3s"/timeout_propose = "1s"/' /home/heighliner/.osmosisd/config/config.toml
+          sed -i 's/laddr = "tcp:\/\/127.0.0.1:26657"/laddr = "tcp:\/\/0.0.0.0:26657"/' /home/heighliner/.osmosisd/config/config.toml
+          sed -i 's/enable = false/enable = true/' /home/heighliner/.osmosisd/config/app.toml
+          sed -i 's/cors_allowed_origins = \[\]/cors_allowed_origins = ["*"]/' /home/heighliner/.osmosisd/config/config.toml
+          osmosisd keys add validator --keyring-backend test --home /home/heighliner/.osmosisd
+          VALADDR=$$(osmosisd keys show validator -a --keyring-backend test --home /home/heighliner/.osmosisd)
+          osmosisd genesis add-genesis-account $$VALADDR 1000000000000uosmo --home /home/heighliner/.osmosisd
+          echo "${RELAYER_MNEMONIC}" | osmosisd keys add relayer --recover --keyring-backend test --home /home/heighliner/.osmosisd
+          RELAYADDR=$$(osmosisd keys show relayer -a --keyring-backend test --home /home/heighliner/.osmosisd)
+          osmosisd genesis add-genesis-account $$RELAYADDR 10000000000uosmo --home /home/heighliner/.osmosisd
+          osmosisd genesis gentx validator 500000000000uosmo --chain-id localosmo-1 --keyring-backend test --home /home/heighliner/.osmosisd
+          osmosisd genesis collect-gentxs --home /home/heighliner/.osmosisd
+        fi
+        osmosisd start --home /home/heighliner/.osmosisd
+    volumes:
+      - osmosis-data:/home/heighliner/.osmosisd
+    healthcheck:
+      test: ["CMD-SHELL", "osmosisd status --home /home/heighliner/.osmosisd 2>&1 | grep -q 'latest_block_height'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    networks:
+      - devnet
+
+  noble:
+    image: ghcr.io/noble-assets/noble:v11.3.0
+    profiles: ["ibc", "full"]
+    user: "1025:1025"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        if [ ! -f /home/heighliner/.noble/config/genesis.json ]; then
+          nobled init validator --chain-id noble-devnet-1 --home /home/heighliner/.noble
+          sed -i 's/timeout_commit = "5s"/timeout_commit = "1s"/' /home/heighliner/.noble/config/config.toml
+          sed -i 's/timeout_propose = "3s"/timeout_propose = "1s"/' /home/heighliner/.noble/config/config.toml
+          sed -i 's/laddr = "tcp:\/\/127.0.0.1:26657"/laddr = "tcp:\/\/0.0.0.0:26657"/' /home/heighliner/.noble/config/config.toml
+          sed -i 's/enable = false/enable = true/' /home/heighliner/.noble/config/app.toml
+          sed -i 's/cors_allowed_origins = \[\]/cors_allowed_origins = ["*"]/' /home/heighliner/.noble/config/config.toml
+          nobled keys add validator --keyring-backend test --home /home/heighliner/.noble
+          VALADDR=$$(nobled keys show validator -a --keyring-backend test --home /home/heighliner/.noble)
+          nobled keys add minter --keyring-backend test --home /home/heighliner/.noble
+          MINTER=$$(nobled keys show minter -a --keyring-backend test --home /home/heighliner/.noble)
+          echo "${RELAYER_MNEMONIC}" | nobled keys add relayer --recover --keyring-backend test --home /home/heighliner/.noble
+          RELAYADDR=$$(nobled keys show relayer -a --keyring-backend test --home /home/heighliner/.noble)
+          nobled genesis add-genesis-account $$VALADDR 1000000000000ustake --home /home/heighliner/.noble
+          nobled genesis add-genesis-account $$MINTER 1000000ustake --home /home/heighliner/.noble
+          nobled genesis add-genesis-account $$RELAYADDR 10000000000ustake --home /home/heighliner/.noble
+          nobled genesis gentx validator 500000000000ustake --chain-id noble-devnet-1 --keyring-backend test --home /home/heighliner/.noble
+          nobled genesis collect-gentxs --home /home/heighliner/.noble
+          GENESIS=/home/heighliner/.noble/config/genesis.json
+          TEMP=/tmp/genesis.json
+          jq --arg addr "$$VALADDR" '.app_state.authority.owner = $$addr' $$GENESIS > $$TEMP && mv $$TEMP $$GENESIS
+          jq '.app_state.staking.params.bond_denom = "ustake"' $$GENESIS > $$TEMP && mv $$TEMP $$GENESIS
+          jq '.app_state.bank.denom_metadata += [{"description":"Circle USD Coin","denom_units":[{"denom":"uusdc","exponent":0,"aliases":["microusdc"]},{"denom":"usdc","exponent":6}],"base":"uusdc","display":"usdc","name":"Circle USD Coin","symbol":"USDC"}]' $$GENESIS > $$TEMP && mv $$TEMP $$GENESIS
+          jq '.app_state."fiat-tokenfactory".mintingDenom = {"denom":"uusdc"}' $$GENESIS > $$TEMP && mv $$TEMP $$GENESIS
+          jq '.app_state."fiat-tokenfactory".paused.paused = false' $$GENESIS > $$TEMP && mv $$TEMP $$GENESIS
+          jq --arg addr "$$VALADDR" '.app_state."fiat-tokenfactory".owner = {"address":$$addr}' $$GENESIS > $$TEMP && mv $$TEMP $$GENESIS
+          jq --arg addr "$$VALADDR" '.app_state."fiat-tokenfactory".masterMinter = {"address":$$addr}' $$GENESIS > $$TEMP && mv $$TEMP $$GENESIS
+          jq --arg ctrl "$$VALADDR" --arg minter "$$MINTER" '.app_state."fiat-tokenfactory".minterControllerList = [{"controller":$$ctrl,"minter":$$minter}]' $$GENESIS > $$TEMP && mv $$TEMP $$GENESIS
+          jq --arg minter "$$MINTER" '.app_state."fiat-tokenfactory".mintersList = [{"address":$$minter,"allowance":{"denom":"uusdc","amount":"1000000000000000"}}]' $$GENESIS > $$TEMP && mv $$TEMP $$GENESIS
+        fi
+        nobled start --home /home/heighliner/.noble
+    volumes:
+      - noble-data:/home/heighliner/.noble
+    healthcheck:
+      test: ["CMD-SHELL", "nobled status --home /home/heighliner/.noble 2>&1 | grep -q 'latest_block_height'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    networks:
+      - devnet
+
+  hermes:
+    image: ghcr.io/informalsystems/hermes:v1.12.0
+    profiles: ["ibc", "full"]
+    volumes:
+      - ./config/hermes/config.toml:/home/hermes/.hermes/config.toml:ro
+      - hermes-data:/home/hermes/.hermes/keys
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Waiting for chains to be ready..."
+        until hermes health-check 2>/dev/null; do sleep 5; done
+
+        echo "${RELAYER_MNEMONIC}" > /tmp/mnemonic.txt
+        hermes keys add --chain xion-devnet-1 --mnemonic-file /tmp/mnemonic.txt --overwrite || true
+        hermes keys add --chain localosmo-1 --mnemonic-file /tmp/mnemonic.txt --overwrite || true
+        hermes keys add --chain noble-devnet-1 --mnemonic-file /tmp/mnemonic.txt --overwrite || true
+        rm /tmp/mnemonic.txt
+
+        hermes create client --host-chain xion-devnet-1 --reference-chain localosmo-1
+        hermes create client --host-chain localosmo-1 --reference-chain xion-devnet-1
+        hermes create client --host-chain xion-devnet-1 --reference-chain noble-devnet-1
+        hermes create client --host-chain noble-devnet-1 --reference-chain xion-devnet-1
+
+        hermes create connection --a-chain xion-devnet-1 --b-chain localosmo-1
+        hermes create connection --a-chain xion-devnet-1 --b-chain noble-devnet-1
+
+        hermes create channel --a-chain xion-devnet-1 --a-connection connection-0 --a-port transfer --b-port transfer
+        hermes create channel --a-chain xion-devnet-1 --a-connection connection-1 --a-port transfer --b-port transfer
+
+        echo "IBC channels created. Starting relayer..."
+        hermes start
+    depends_on:
+      xion:
+        condition: service_healthy
+      osmosis:
+        condition: service_healthy
+      noble:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "hermes health-check 2>&1 | grep -q 'healthy'"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    networks:
+      - devnet
+
+# ═════════════════════════════════════════════════════════════════════════════
+# NETWORKS & VOLUMES
+# ═════════════════════════════════════════════════════════════════════════════
 
 networks:
-  default:
+  devnet:
 
 volumes:
   shared:
+  init-scripts:
+  postgres-data:
+  osmosis-data:
+  noble-data:
+  hermes-data:

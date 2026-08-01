@@ -1,113 +1,58 @@
-# Xion Devnet
+# Xion Devnet — Full Stack
 
-Xion Devnet is a multi-validator sandbox environment orchestrated with Docker Compose for local development and testing.
-
-## Prerequisites
-
-- [Docker](https://www.docker.com/) (version 20.10 or higher)
-- [Docker Compose](https://github.com/docker/compose) (version 2.0 or higher)
-- [Make](https://www.gnu.org/software/make/) (for using Makefile commands)
+Run the entire Xion ecosystem locally with Docker Compose.
 
 ## Quick Start
 
-The easiest way to get started is using the provided Makefile commands:
-
-```sh
-# Build devnet images with commit ID
-make build
-
-# Start devnet in background
-make start
-
-# Stop devnet (preserves state)
-make stop
-
-# Stop and remove containers
-make down
-
-# Clean up containers
-make clean
-
-# Complete purge (removes containers and shared volume)
-make purge
-
-# Start singleton validator from .env configuration
-make singleton
+```bash
+git clone --recurse-submodules -b chore/devnet-v28 https://github.com/burnt-labs/devnet.git
+cd devnet
+cp .env.example .env
+make core          # chain + haproxy + explorer + faucet
+make full          # everything
 ```
 
-## Manual Docker Compose Commands
+## Profiles
 
-If you prefer to use Docker Compose directly:
+| Profile | Services |
+|---------|----------|
+| `core` | Xion (3 validators), HAProxy, Explorer, Faucet |
+| `apps` | Core + AA API, Dashboard, Staking, Dev Portal, Indexer, Assets |
+| `oauth` | Apps + OAuth3, OAuth2 API, OAuth2 Clients Dashboard |
+| `zk` | Apps + ZK Email Backend, Prover, Worker |
+| `ibc` | Core + Osmosis, Noble, Hermes relayer |
+| `full` | Everything |
 
-```sh
-# Build images with commit ID
-COMMIT=$(cd ./xion && git rev-parse --short HEAD) docker compose build --pull --no-cache
+## Ports
 
-# Start devnet
-docker compose up -d
+| Port | Service | Port | Service |
+|------|---------|------|---------|
+| 1317 | Xion REST | 8001 | Indexer Proxy |
+| 9090 | Xion gRPC | 8002 | OAuth2 API |
+| 26657 | Xion RPC | 8003 | OAuth2 Clients |
+| 3000 | Faucet | 8080 | OAuth3 |
+| 3001 | AA API | 8081 | ZK Email Prover |
+| 3002 | Indexer GraphQL | 8082 | ZK Email Worker |
+| 3003 | Developer Portal | 8788 | Staking |
+| 3004 | Assets | 26757 | Osmosis RPC |
+| 4173 | Dashboard | 26857 | Noble RPC |
+| 5173 | Explorer | 9190/9290 | Osmosis/Noble gRPC |
+| 8444 | HAProxy Stats | 26656 | Xion P2P |
 
-# Stop devnet (preserves blockchain state)
-docker compose stop
+## Commands
 
-# Stop and remove containers
-docker compose down
-
-# View logs
-docker compose logs -f
-
-# Complete cleanup and reset
-docker compose rm -f -s -v
-docker volume rm -f devnet_shared
-
-# Restart from previous height
-docker compose start
+```bash
+make build PROFILE=apps    # Build images
+make start PROFILE=apps    # Start
+make logs PROFILE=apps     # Follow logs
+make status                # Container status
+make purge                 # Remove everything
 ```
 
-## Configuration Options
+## IBC
 
-- **NUM_VALIDATORS**: Number of validator nodes (default: 3)
-- **XIOND_VERSION**: Version tag for the xion docker image (default: latest)
-- **COMMIT**: Git commit hash passed to build (automatically set by Makefile)
-- **DAEMON_NAME**: Name of the daemon process (configured in .env)
+The `ibc` profile starts Osmosis (v28.0.0) and Noble (v11.3.0) with a Hermes relayer (v1.12.0). Channels are auto-created for `transfer` on both pairs. Noble includes USDC minting via `fiat-tokenfactory`.
 
-## Network Information
+## Environment
 
-Once running, the devnet exposes the following services through HAProxy:
-
-- **RPC Endpoint**: `http://localhost:26657`
-- **API Endpoint**: `http://localhost:1317`
-- **gRPC Endpoint**: `http://localhost:9090`
-- **Xion Explorer**: `http://localhost:5173`
-- **Xion Faucet**: `http://localhost:3000`
-- **Additional RPC**: `http://localhost:26658`
-
-The setup includes:
-
-- **Xion validators**: Configurable number of validator nodes (default: 3)
-- **HAProxy**: Load balancer and reverse proxy
-- **Xion Explorer**: Web interface for blockchain exploration
-- **Xion Faucet**: Token distribution service
-
-## Submodules
-
-This devnet environment includes several Xion ecosystem components as git submodules:
-
-- **[xion](https://github.com/burnt-labs/xion)** - Core Xion blockchain node and validator software
-- **[xion-explorer](https://github.com/burnt-labs/xion-explorer)** - Web-based blockchain explorer for viewing transactions and blocks
-- **[xion-faucet](https://github.com/burnt-labs/xion-faucet)** - Token distribution service for testnet XION tokens
-- **[xion-staking](https://github.com/burnt-labs/xion-staking)** - Staking interface for validators and delegators
-- **[xion-assets](https://github.com/burnt-labs/xion-assets)** - Static assets and branding resources
-
-To update all submodules to their latest commits:
-
-```sh
-git submodule update --remote --recursive
-```
-
-## Troubleshooting
-
-- **Port conflicts**: Ensure ports 26657, 1317, 9090, 5173, and 3000 are available
-- **Storage issues**: Use `make purge` to reset blockchain state and volumes
-- **Build failures**: Try `make build` to rebuild images with commit ID
-- **Permission errors**: Ensure Docker daemon is running and user has permissions
-- **Service startup**: Check `docker compose logs -f` for detailed error messages
+See `.env.example` for all variables. Key ones: `XIOND_VERSION`, `NUM_VALIDATORS`, `RELAYER_MNEMONIC`, `STYTCH_PUBLIC_TOKEN`, `FEE_GRANTER_ADDRESS`.
