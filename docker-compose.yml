@@ -240,7 +240,6 @@ services:
       - VITE_XION_RPC_URL=http://haproxy:26657
       - VITE_ABSTRAXION_API_URL=http://account-abstraction-api:3001
       - VITE_STYTCH_PUBLIC_TOKEN=${STYTCH_PUBLIC_TOKEN:-public-token-test-823bab5f-5fe6-4a3f-b49a-ca59763be42a}
-      - VITE_NUMIA_TOKEN=${NUMIA_TOKEN:-placeholder}
       - VITE_FEE_GRANTER_ADDRESS=${FEE_GRANTER_ADDRESS:-}
       - VITE_DEFAULT_ACCOUNT_CONTRACT_CODE_ID=1
       - VITE_ZKEMAIL_FLAG=${ZKEMAIL_FLAG:-false}
